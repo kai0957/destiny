@@ -1,0 +1,2073 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>玄學命理工作台 | 確定性術數排盤與白話解析引擎</title>
+  <style>
+    :root {
+      --bg-base: #0b1120;
+      --bg-panel: #111827;
+      --bg-card: #1e293b;
+      --bg-card-hover: #263349;
+      --bg-input: #0f172a;
+      --border-subtle: #334155;
+      --border-active: #38bdf8;
+      --accent-blue: #3b82f6;
+      --accent-cyan: #06b6d4;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --accent-purple: #a855f7;
+      --text-main: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif;
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* 頂部標題列 */
+    header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 18px 24px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-title {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .brand-title h1 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #38bdf8;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-title p {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+
+    .status-badge {
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: #34d399;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+    }
+
+    /* 分頁導覽列 */
+    .nav-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 14px 24px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .tab-btn {
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-subtle);
+      padding: 9px 16px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .tab-btn:hover {
+      background: var(--bg-card-hover);
+      color: var(--text-main);
+    }
+
+    .tab-btn.active {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: #ffffff;
+      border-color: #60a5fa;
+      box-shadow: 0 2px 10px rgba(37, 99, 235, 0.4);
+    }
+
+    /* 主工作區雙欄佈局 */
+    .workspace-container {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 20px 24px 48px;
+      display: grid;
+      grid-template-columns: 350px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    @media (max-width: 960px) {
+      .workspace-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .panel-header h2 {
+      font-size: 1.02rem;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .panel-tag {
+      font-size: 0.78rem;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.1);
+      padding: 3px 10px;
+      border-radius: 6px;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    /* SKILL.md 工程約束框 */
+    .skill-constraint-box {
+      background: rgba(14, 116, 144, 0.18);
+      border: 1px solid rgba(34, 211, 238, 0.35);
+      border-left: 4px solid #06b6d4;
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 0.82rem;
+      color: #cffafe;
+      margin-bottom: 16px;
+      line-height: 1.55;
+    }
+
+    /* 表單元素 */
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.83rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .form-control {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      padding: 9px 12px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .form-control:focus {
+      border-color: var(--border-active);
+    }
+
+    .run-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #0284c7, #2563eb);
+      color: #fff;
+      border: none;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 6px;
+      transition: transform 0.15s, box-shadow 0.2s;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+    }
+
+    .run-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(37, 99, 235, 0.5);
+    }
+
+    /* 紫微斗數 4x4 宮位盤 */
+    .ziwei-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: repeat(4, minmax(125px, auto));
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    @media (max-width: 680px) {
+      .ziwei-grid {
+        grid-template-columns: repeat(2, 1fr);
+        grid-template-rows: auto;
+      }
+      .ziwei-center {
+        grid-column: span 2 !important;
+        grid-row: auto !important;
+      }
+    }
+
+    .palace-cell {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+
+    .palace-cell:hover {
+      border-color: #60a5fa;
+      background: var(--bg-card-hover);
+    }
+
+    .palace-cell.selected {
+      border: 2px solid #f59e0b;
+      background: rgba(245, 158, 11, 0.12);
+    }
+
+    .palace-cell.sanfang {
+      border: 1.5px solid #38bdf8;
+      background: rgba(56, 189, 248, 0.08);
+    }
+
+    .palace-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .palace-name {
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: #38bdf8;
+    }
+
+    .palace-branch {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    .palace-stars {
+      font-size: 0.82rem;
+      line-height: 1.45;
+      margin-bottom: 6px;
+    }
+
+    .star-major {
+      color: #f87171;
+      font-weight: 700;
+    }
+
+    .star-minor {
+      color: #cbd5e1;
+      font-size: 0.76rem;
+    }
+
+    .sihua-tag {
+      display: inline-block;
+      padding: 0 4px;
+      border-radius: 3px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      margin-left: 2px;
+    }
+    .sihua-lu { background: #059669; color: #fff; }
+    .sihua-quan { background: #d97706; color: #fff; }
+    .sihua-ke { background: #2563eb; color: #fff; }
+    .sihua-ji { background: #dc2626; color: #fff; }
+
+    .palace-footer {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-align: right;
+      border-top: 1px dashed rgba(148, 163, 184, 0.2);
+      padding-top: 4px;
+    }
+
+    .ziwei-center {
+      grid-column: 2 / 4;
+      grid-row: 2 / 4;
+      background: linear-gradient(145deg, #0f172a, #1e293b);
+      border: 1px solid #475569;
+      border-radius: 10px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .ziwei-center h3 {
+      color: #fbbf24;
+      font-size: 1.02rem;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 6px;
+    }
+
+    .ziwei-center p {
+      font-size: 0.85rem;
+      color: #e2e8f0;
+    }
+
+    /* 九宮格通用（奇門 / 風水） */
+    .nine-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .nine-cell {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 12px;
+      min-height: 118px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .nine-cell.auspicious {
+      border-color: rgba(16, 185, 129, 0.6);
+      background: rgba(16, 185, 129, 0.08);
+    }
+
+    .nine-cell.inauspicious {
+      border-color: rgba(244, 63, 94, 0.45);
+      background: rgba(244, 63, 94, 0.06);
+    }
+
+    /* 八字四柱卡片 */
+    .bazi-pillars {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .pillar-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 14px 10px;
+      text-align: center;
+    }
+
+    .pillar-box.day-master {
+      border: 2px solid #f59e0b;
+      background: rgba(245, 158, 11, 0.1);
+    }
+
+    .pillar-title {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .pillar-stem {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: #38bdf8;
+      line-height: 1.2;
+    }
+
+    .pillar-branch {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: #fbbf24;
+      line-height: 1.2;
+      margin-bottom: 6px;
+    }
+
+    .pillar-meta {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 6px;
+    }
+
+    /* 塔羅牌陣卡片 */
+    .tarot-spread {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .tarot-card-box {
+      background: linear-gradient(160deg, #1e1b4b, #1e293b);
+      border: 1px solid #6366f1;
+      border-radius: 10px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .tarot-pos {
+      font-size: 0.75rem;
+      color: #a5b4fc;
+      font-weight: 700;
+    }
+
+    .tarot-name {
+      font-size: 1.02rem;
+      font-weight: 800;
+      color: #fde047;
+    }
+
+    .tarot-orient {
+      display: inline-block;
+      font-size: 0.74rem;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 700;
+      width: fit-content;
+    }
+
+    .orient-up {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+    }
+
+    .orient-rev {
+      background: rgba(244, 63, 94, 0.2);
+      color: #fda4af;
+    }
+
+    /* 專業解析與白話說明區塊 */
+    .plain-guide-section {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 18px;
+      margin-top: 16px;
+    }
+
+    .plain-guide-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #fbbf24;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(251, 191, 36, 0.25);
+    }
+
+    .guide-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 12px;
+    }
+
+    .guide-card {
+      background: var(--bg-card);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 8px;
+      padding: 13px 15px;
+    }
+
+    .guide-card h4 {
+      font-size: 0.9rem;
+      color: #38bdf8;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .guide-card p, .guide-card ul {
+      font-size: 0.85rem;
+      color: #e2e8f0;
+      line-height: 1.65;
+    }
+
+    .guide-card ul {
+      padding-left: 18px;
+    }
+
+    .guide-card li {
+      margin-bottom: 4px;
+    }
+
+    .vernacular-callout {
+      margin-top: 12px;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      border-left: 4px solid #10b981;
+      border-radius: 8px;
+      padding: 13px 15px;
+      font-size: 0.88rem;
+      color: #ecfdf5;
+      line-height: 1.7;
+    }
+
+    .vernacular-callout strong {
+      color: #34d399;
+    }
+
+    /* 底部一鍵複製占卜內容按鈕 */
+    .copy-ai-footer {
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px dashed var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .copy-ai-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #059669, #0d9488);
+      color: #ffffff;
+      border: 1px solid #34d399;
+      padding: 13px 18px;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25);
+    }
+
+    .copy-ai-btn:hover {
+      background: linear-gradient(135deg, #10b981, #14b8a6);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(16, 185, 129, 0.4);
+    }
+
+    .copy-hint {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      text-align: center;
+    }
+
+    /* Toast 提示 */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #065f46;
+      color: #ecfdf5;
+      border: 1px solid #34d399;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(12px);
+      transition: all 0.25s ease;
+      z-index: 9999;
+    }
+
+    #toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* 進度條 */
+    .bar-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+      font-size: 0.83rem;
+    }
+    .bar-label {
+      width: 68px;
+      font-weight: 700;
+    }
+    .bar-track {
+      flex: 1;
+      height: 10px;
+      background: #0f172a;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid var(--border-subtle);
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 999px;
+    }
+    .bar-val {
+      width: 44px;
+      text-align: right;
+      color: var(--text-secondary);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand-title">
+      <h1>🧭 玄學命理工作台 | 確定性術數排盤與白話解析引擎</h1>
+      <p>整合六大開源術數 Skill 規則框架 × 專業結構排盤 × 系統化白話白紙導讀（純靜態離線可算）</p>
+    </div>
+    <div class="status-badge">
+      <span class="status-dot"></span>
+      <span>曆法與排盤引擎就緒（離線可用）</span>
+    </div>
+  </header>
+
+  <nav class="nav-tabs" id="navTabs">
+    <button class="tab-btn active" data-tab="ziwei">🌌 紫微斗數</button>
+    <button class="tab-btn" data-tab="qimen">🧭 奇門遁甲</button>
+    <button class="tab-btn" data-tab="bazi">📜 四柱八字</button>
+    <button class="tab-btn" data-tab="yinyuan">💞 月老姻緣</button>
+    <button class="tab-btn" data-tab="fengshui">🏮 陽宅風水</button>
+    <button class="tab-btn" data-tab="tarot">🃏 塔羅占卜</button>
+    <button class="tab-btn" data-tab="buddhism">🪷 佛學問道</button>
+  </nav>
+
+  <main class="workspace-container">
+    <!-- 左側參數設定區 -->
+    <section class="panel" id="leftPanel">
+      <!-- 1. 紫微參數 -->
+      <div class="tab-input" id="input-ziwei">
+        <div class="panel-header">
+          <h2>1. 紫微斗數參數與口徑鎖定</h2>
+        </div>
+        <div class="skill-constraint-box">
+          <strong>SKILL.md 工程約束：</strong>先校驗出生時間與性別，鎖定閏月與子時口徑後，由確定性引擎排布十二宮主星、廟旺與生年四化，禁止自由臆測星曜位置。
+        </div>
+        <div class="form-group">
+          <label>陽曆出生日期</label>
+          <input type="date" class="form-control" id="zw-date" value="1995-08-18" />
+        </div>
+        <div class="form-group">
+          <label>出生時辰</label>
+          <select class="form-control" id="zw-hour">
+            <option value="0">23:00 - 00:59（早子時）</option>
+            <option value="1">01:00 - 02:59（丑時）</option>
+            <option value="2">03:00 - 04:59（寅時）</option>
+            <option value="3">05:00 - 06:59（卯時）</option>
+            <option value="4" selected>07:00 - 08:59（辰時）</option>
+            <option value="5">09:00 - 10:59（巳時）</option>
+            <option value="6">11:00 - 12:59（午時）</option>
+            <option value="7">13:00 - 14:59（未時）</option>
+            <option value="8">15:00 - 16:59（申時）</option>
+            <option value="9">17:00 - 18:59（酉時）</option>
+            <option value="10">19:00 - 20:59（戌時）</option>
+            <option value="11">21:00 - 22:59（亥時）</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>性別（定大限順逆）</label>
+          <select class="form-control" id="zw-gender">
+            <option value="男">男</option>
+            <option value="女">女</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>解讀焦點 / 所問事項（選填）</label>
+          <input type="text" class="form-control" id="zw-question" placeholder="例：未來三年事業轉換與財運重心" />
+        </div>
+        <button class="run-btn" onclick="runZiwei()">⚡ 執行紫微排盤與白話解析</button>
+      </div>
+
+      <!-- 2. 奇門參數 -->
+      <div class="tab-input hidden" id="input-qimen">
+        <div class="panel-header">
+          <h2>1. 奇門遁甲起局參數</h2>
+        </div>
+        <div class="skill-constraint-box">
+          <strong>SKILL.md 工程約束：</strong>鎖定節氣陰陽遁與拆補定局口徑，嚴格依值符隨時干、值使隨時宮原則排布九宮天盤、地盤、八門、九星與八神。
+        </div>
+        <div class="form-group">
+          <label>起局日期</label>
+          <input type="date" class="form-control" id="qm-date" value="2026-11-19" />
+        </div>
+        <div class="form-group">
+          <label>起局時辰</label>
+          <select class="form-control" id="qm-hour">
+            <option value="0">子時 (23:00-00:59)</option>
+            <option value="1">丑時 (01:00-02:59)</option>
+            <option value="2">寅時 (03:00-04:59)</option>
+            <option value="3">卯時 (05:00-06:59)</option>
+            <option value="4">辰時 (07:00-08:59)</option>
+            <option value="5">巳時 (09:00-10:59)</option>
+            <option value="6">午時 (11:00-12:59)</option>
+            <option value="7">未時 (13:00-14:59)</option>
+            <option value="8">申時 (15:00-16:59)</option>
+            <option value="9" selected>酉時 (17:00-18:59)</option>
+            <option value="10">戌時 (19:00-20:59)</option>
+            <option value="11">亥時 (21:00-22:59)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>占問事類（定用神符號）</label>
+          <select class="form-control" id="qm-topic">
+            <option value="事業求職（看開門、年命）">事業求職（看開門、年命）</option>
+            <option value="求財投資（看生門、戊土）">求財投資（看生門、戊土）</option>
+            <option value="感情婚姻（看六合、乙庚）">感情婚姻（看六合、乙庚）</option>
+            <option value="出行談判（看景門、值符）">出行談判（看景門、值符）</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>具體問題（選填）</label>
+          <input type="text" class="form-control" id="qm-question" placeholder="例：下週向客戶提案能否順利簽約？" />
+        </div>
+        <button class="run-btn" onclick="runQimen()">⚡ 執行奇門起局與白話解析</button>
+      </div>
+
+      <!-- 3. 八字參數 -->
+      <div class="tab-input hidden" id="input-bazi">
+        <div class="panel-header">
+          <h2>1. 四柱八字參數與流派鎖定</h2>
+        </div>
+        <div class="skill-constraint-box">
+          <strong>SKILL.md 工程約束：</strong>整合《子平真詮》《滴天髓》格局與月令旺衰體系，精確計算四柱干支、十神配置、五行得令比例與大運流向。
+        </div>
+        <div class="form-group">
+          <label>陽曆出生日期</label>
+          <input type="date" class="form-control" id="bz-date" value="1992-04-22" />
+        </div>
+        <div class="form-group">
+          <label>出生時辰</label>
+          <select class="form-control" id="bz-hour">
+            <option value="0">子時 (23:00-00:59)</option>
+            <option value="1">丑時 (01:00-02:59)</option>
+            <option value="2">寅時 (03:00-04:59)</option>
+            <option value="3">卯時 (05:00-06:59)</option>
+            <option value="4">辰時 (07:00-08:59)</option>
+            <option value="5" selected>巳時 (09:00-10:59)</option>
+            <option value="6">午時 (11:00-12:59)</option>
+            <option value="7">未時 (13:00-14:59)</option>
+            <option value="8">申時 (15:00-16:59)</option>
+            <option value="9">酉時 (17:00-18:59)</option>
+            <option value="10">戌時 (19:00-20:59)</option>
+            <option value="11">亥時 (21:00-22:59)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>性別</label>
+          <select class="form-control" id="bz-gender">
+            <option value="男">男命（乾造）</option>
+            <option value="女">女命（坤造）</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>想重點詢問的方向（選填）</label>
+          <input type="text" class="form-control" id="bz-question" placeholder="例：適合創業還是穩定上班？喜用神如何補運？" />
+        </div>
+        <button class="run-btn" onclick="runBazi()">⚡ 執行八字排盤與白話解析</button>
+      </div>
+
+      <!-- 4. 月老姻緣參數 -->
+      <div class="tab-input hidden" id="input-yinyuan">
+        <div class="panel-header">
+          <h2>1. 月老姻緣合婚與桃花參數</h2>
+        </div>
+        <div class="skill-constraint-box">
+          <strong>SKILL.md 工程約束：</strong>結合雙人年命生肖六合三合刑沖、日柱天合地合與紅鸞天喜桃花方位，並依心念起出專屬月老靈籤。
+        </div>
+        <div class="form-group">
+          <label>己方出生日期</label>
+          <input type="date" class="form-control" id="yy-date1" value="1995-05-12" />
+        </div>
+        <div class="form-group">
+          <label>對方出生日期（求單身正緣可留空）</label>
+          <input type="date" class="form-control" id="yy-date2" value="1996-10-08" />
+        </div>
+        <div class="form-group">
+          <label>目前感情狀態</label>
+          <select class="form-control" id="yy-status">
+            <option value="單身求正緣桃花">單身求正緣桃花</option>
+            <option value="曖昧觀察中，想看發展">曖昧觀察中，想看發展</option>
+            <option value="穩定交往，評估合婚步入婚姻" selected>穩定交往，評估合婚步入婚姻</option>
+            <option value="感情遇到瓶頸，尋求化解建議">感情遇到瓶頸，尋求化解建議</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>心中祈願問題（選填）</label>
+          <input type="text" class="form-control" id="yy-question" placeholder="例：我們今年適合見家長或討論婚事嗎？" />
+        </div>
+        <button class="run-btn" onclick="runYinyuan()">💞 執行姻緣測算與白話解析</button>
+      </div>
+
+      <!-- 5. 陽宅風水參數 -->
+      <div class="tab-input hidden" id="input-fengshui">
+        <div class="panel-header">
+          <h2>1. 陽宅八宅與九宮飛星參數</h2>
+        </div>
+        <div class="skill-constraint-box">
+          <strong>SKILL.md 工程約束：</strong>依據《八宅明鏡》定東四宅／西四宅遊年吉凶位，並結合下元九運（2024-2043）及 2026 丙午流年飛星方位給出佈局建議。
+        </div>
+        <div class="form-group">
+          <label>房屋坐向（大門朝向之對面為坐）</label>
+          <select class="form-control" id="fs-facing">
+            <option value="坎宅（坐北朝南）">坎宅（坐北朝南・離門）</option>
+            <option value="離宅（坐南朝北）">離宅（坐南朝北・坎門）</option>
+            <option value="震宅（坐東朝西）">震宅（坐東朝西・兌門）</option>
+            <option value="兌宅（坐西朝東）">兌宅（坐西朝東・震門）</option>
+            <option value="巽宅（坐東南朝西北）" selected>巽宅（坐東南朝西北・乾門）</option>
+            <option value="乾宅（坐西北朝東南）">乾宅（坐西北朝東南・巽門）</option>
+            <option value="坤宅（坐西南朝東北）">坤宅（坐西南朝東北・艮門）</option>
+            <option value="艮宅（坐東北朝西南）">艮宅（坐東北朝西南・坤門）</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>屋主出生年份（西元，算命卦用）</label>
+          <input type="number" class="form-control" id="fs-year" value="1990" min="1940" max="2025" />
+        </div>
+        <div class="form-group">
+          <label>屋主性別</label>
+          <select class="form-control" id="fs-gender">
+            <option value="男">男</option>
+            <option value="女">女</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>想改善的居家重點（選填）</label>
+          <input type="text" class="form-control" id="fs-question" placeholder="例：想催旺書房事業文昌位與客廳財位" />
+        </div>
+        <button class="run-btn" onclick="runFengshui()">🏮 執行風水堪輿與白話解析</button>
+      </div>
+
+      <!-- 6. 塔羅占卜參數 -->
+      <div class="tab-input hidden" id="input-tarot">
+        <div class="panel-header">
+          <h2>1. 塔羅牌陣與問題設定</h2>
+        </div>
+        <div class="skill-constraint-box">
+          <strong>SKILL.md 工程約束：</strong>採用 78 張完整偉特塔羅牌庫與正逆位機制，結合牌面元素尊貴度（火水風土生克），拒絕模稜兩可的巴納姆空話。
+        </div>
+        <div class="form-group">
+          <label>選擇占卜牌陣</label>
+          <select class="form-control" id="tr-spread">
+            <option value="1">單張指引牌（核心直覺與當下建議）</option>
+            <option value="3" selected>三張時間流（過去成因・現在處境・未來趨勢）</option>
+            <option value="4">四元素決策陣（現況・阻礙・行動建議・最終結果）</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>心中默念的問題</label>
+          <input type="text" class="form-control" id="tr-question" value="目前正在考慮的新工作機會，未來三個月的發展如何？" />
+        </div>
+        <button class="run-btn" onclick="runTarot()">🃏 洗牌抽牌並生成白話解讀</button>
+      </div>
+
+      <!-- 7. 佛學問道參數 -->
+      <div class="tab-input hidden" id="input-buddhism">
+        <div class="panel-header">
+          <h2>1. 佛學經典對機問道設定</h2>
+        </div>
+        <div class="skill-constraint-box">
+          <strong>SKILL.md 工程約束：</strong>嚴格依據《心經》《金剛經》《六祖壇經》《法句經》原典經義回應人生困惑，先給經文原文，再做白話拆解與日常修心練習。
+        </div>
+        <div class="form-group">
+          <label>選擇請益宗風與經典</label>
+          <select class="form-control" id="bd-school">
+            <option value="禪宗頓悟（《六祖壇經》・破除執著內耗）">禪宗頓悟（《六祖壇經》・破除執著內耗）</option>
+            <option value="般若空性（《金剛經》《心經》・看淡得失無常）" selected>般若空性（《金剛經》《心經》・看淡得失無常）</option>
+            <option value="唯識轉念（《八識規矩頌》・轉化焦慮情緒）">唯識轉念（《八識規矩頌》・轉化焦慮情緒）</option>
+            <option value="南傳正念（《法句經》・當下覺察與自律）">南傳正念（《法句經》・當下覺察與自律）</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>目前心中的煩惱或想參究的課題</label>
+          <textarea class="form-control" id="bd-question" rows="3">最近工作壓力很大，總是擔心未來計畫趕不上變化，心裡很焦慮無法平靜，該如何轉念？</textarea>
+        </div>
+        <button class="run-btn" onclick="runBuddhism()">🪷 請益經典與生成白話開示</button>
+      </div>
+    </section>
+
+    <!-- 右側結果與白話解析區 -->
+    <section class="panel" id="rightPanel">
+      <!-- 1. 紫微輸出 -->
+      <div class="tab-output" id="output-ziwei">
+        <div class="panel-header">
+          <h2>2. 確定性排盤結果與白話全解</h2>
+          <span class="panel-tag">當前：紫微斗數</span>
+        </div>
+        <p style="font-size:0.82rem; color:#94a3b8; margin-bottom:10px;">💡 點擊任一宮位，可高亮該宮的「三方四正（本宮、對宮、財帛位、官祿位）」並查看白話說明：</p>
+        <div class="ziwei-grid" id="zw-grid"></div>
+        <div id="zw-guide"></div>
+        <div class="copy-ai-footer">
+          <button class="copy-ai-btn" onclick="copyAiPrompt('ziwei')">📋 複製占卜內容（可直接貼給 AI 深度詢問）</button>
+          <span class="copy-hint">已自動整理完整命盤星曜、生年四化、大限與白話摘要，貼上任何 AI 對話框即可直接深聊</span>
+        </div>
+      </div>
+
+      <!-- 2. 奇門輸出 -->
+      <div class="tab-output hidden" id="output-qimen">
+        <div class="panel-header">
+          <h2>2. 奇門遁甲九宮盤與白話全解</h2>
+          <span class="panel-tag">當前：奇門遁甲</span>
+        </div>
+        <div id="qm-summary" style="margin-bottom:12px;"></div>
+        <div class="nine-grid" id="qm-grid"></div>
+        <div id="qm-guide"></div>
+        <div class="copy-ai-footer">
+          <button class="copy-ai-btn" onclick="copyAiPrompt('qimen')">📋 複製占卜內容（可直接貼給 AI 深度詢問）</button>
+          <span class="copy-hint">已自動整理陰陽遁局數、值符值使、九宮八門九星方位與白話行動建議</span>
+        </div>
+      </div>
+
+      <!-- 3. 八字輸出 -->
+      <div class="tab-output hidden" id="output-bazi">
+        <div class="panel-header">
+          <h2>2. 四柱八字命盤與白話全解</h2>
+          <span class="panel-tag">當前：四柱八字</span>
+        </div>
+        <div class="bazi-pillars" id="bz-pillars"></div>
+        <div id="bz-elements" style="background:var(--bg-card); padding:14px; border-radius:10px; border:1px solid var(--border-subtle); margin-bottom:14px;"></div>
+        <div id="bz-guide"></div>
+        <div class="copy-ai-footer">
+          <button class="copy-ai-btn" onclick="copyAiPrompt('bazi')">📋 複製占卜內容（可直接貼給 AI 深度詢問）</button>
+          <span class="copy-hint">已自動整理四柱干支、日主強弱、五行能量比例與喜用神白話指南</span>
+        </div>
+      </div>
+
+      <!-- 4. 月老姻緣輸出 -->
+      <div class="tab-output hidden" id="output-yinyuan">
+        <div class="panel-header">
+          <h2>2. 月老姻緣合婚與靈籤白話全解</h2>
+          <span class="panel-tag">當前：月老姻緣</span>
+        </div>
+        <div id="yy-result"></div>
+        <div class="copy-ai-footer">
+          <button class="copy-ai-btn" onclick="copyAiPrompt('yinyuan')">📋 複製占卜內容（可直接貼給 AI 深度詢問）</button>
+          <span class="copy-hint">已自動整理雙人契合度、桃花方位、月老靈籤籤詩與白話相處建議</span>
+        </div>
+      </div>
+
+      <!-- 5. 陽宅風水輸出 -->
+      <div class="tab-output hidden" id="output-fengshui">
+        <div class="panel-header">
+          <h2>2. 八宅遊年與流年飛星白話全解</h2>
+          <span class="panel-tag">當前：陽宅風水</span>
+        </div>
+        <div id="fs-summary" style="margin-bottom:12px;"></div>
+        <div class="nine-grid" id="fs-grid"></div>
+        <div id="fs-guide"></div>
+        <div class="copy-ai-footer">
+          <button class="copy-ai-btn" onclick="copyAiPrompt('fengshui')">📋 複製占卜內容（可直接貼給 AI 深度詢問）</button>
+          <span class="copy-hint">已自動整理東西四宅吉凶方位、流年財位文昌位與居家擺設白話建議</span>
+        </div>
+      </div>
+
+      <!-- 6. 塔羅占卜輸出 -->
+      <div class="tab-output hidden" id="output-tarot">
+        <div class="panel-header">
+          <h2>2. 塔羅牌陣結果與白話全解</h2>
+          <span class="panel-tag">當前：塔羅占卜</span>
+        </div>
+        <div class="tarot-spread" id="tr-cards"></div>
+        <div id="tr-guide"></div>
+        <div class="copy-ai-footer">
+          <button class="copy-ai-btn" onclick="copyAiPrompt('tarot')">📋 複製占卜內容（可直接貼給 AI 深度詢問）</button>
+          <span class="copy-hint">已自動整理抽出的牌陣位置、正逆位牌義、元素互動與白話行動建議</span>
+        </div>
+      </div>
+
+      <!-- 7. 佛學問道輸出 -->
+      <div class="tab-output hidden" id="output-buddhism">
+        <div class="panel-header">
+          <h2>2. 經典原文引用與白話轉念開示</h2>
+          <span class="panel-tag">當前：佛學問道</span>
+        </div>
+        <div id="bd-result"></div>
+        <div class="copy-ai-footer">
+          <button class="copy-ai-btn" onclick="copyAiPrompt('buddhism')">📋 複製占卜內容（可直接貼給 AI 深度詢問）</button>
+          <span class="copy-hint">已自動整理所引經典原典、白話心法解析與具體日常修心步驟</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast">✅ 已複製占卜與白話解析內容，可直接貼上 AI 詢問！</div>
+
+  <script>
+    // 儲存各分頁最新計算結果供一鍵複製
+    const latestResults = {
+      ziwei: "",
+      qimen: "",
+      bazi: "",
+      yinyuan: "",
+      fengshui: "",
+      tarot: "",
+      buddhism: ""
+    };
+
+    // 分頁切換
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const target = btn.dataset.tab;
+        document.querySelectorAll('.tab-input').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('.tab-output').forEach(el => el.classList.add('hidden'));
+        document.getElementById(`input-${target}`).classList.remove('hidden');
+        document.getElementById(`output-${target}`).classList.remove('hidden');
+      });
+    });
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2800);
+    }
+
+    function copyAiPrompt(tabKey) {
+      const text = latestResults[tabKey];
+      if (!text) {
+        showToast("⚠️ 請先點擊左側執行排盤後再複製！");
+        return;
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+          showToast("✅ 已複製完整占卜結果與白話摘要！請直接貼給 AI 詢問");
+        }).catch(() => fallbackCopy(text));
+      } else {
+        fallbackCopy(text);
+      }
+    }
+
+    function fallbackCopy(text) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showToast("✅ 已複製完整占卜結果與白話摘要！請直接貼給 AI 詢問");
+    }
+
+    // 基礎干支與雜湊工具
+    const STEMS = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"];
+    const BRANCHES = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"];
+    const ZODIAC = ["鼠", "牛", "虎", "兔", "龍", "蛇", "馬", "羊", "猴", "雞", "狗", "豬"];
+    const STEM_EL = { "甲":"木","乙":"木","丙":"火","丁":"火","戊":"土","己":"土","庚":"金","辛":"金","壬":"水","癸":"水" };
+    const BRANCH_EL = { "子":"水","丑":"土","寅":"木","卯":"木","辰":"土","巳":"火","午":"火","未":"土","申":"金","酉":"金","戌":"土","亥":"水" };
+
+    function getYearGanZhi(year) {
+      const s = STEMS[(year - 4) % 10];
+      const b = BRANCHES[(year - 4) % 12];
+      return { stem: s, branch: b, gz: s + b, zodiac: ZODIAC[(year - 4) % 12] };
+    }
+
+    function getDayGanZhi(dateStr) {
+      const base = new Date("2000-01-01T00:00:00");
+      const target = new Date(dateStr + "T00:00:00");
+      const diffDays = Math.round((target - base) / 86400000);
+      // 2000-01-01 為 戊午日 (stem 4, branch 6)
+      const sIdx = ((4 + diffDays) % 10 + 10) % 10;
+      const bIdx = ((6 + diffDays) % 12 + 12) % 12;
+      return { stem: STEMS[sIdx], branch: BRANCHES[bIdx], gz: STEMS[sIdx] + BRANCHES[bIdx], sIdx, bIdx };
+    }
+
+    /* =========================================================
+       1. 紫微斗數引擎與白話全解
+    ========================================================= */
+    const PALACE_NAMES = ["命宮", "兄弟", "夫妻", "子女", "財帛", "疾厄", "遷移", "僕役", "官祿", "田宅", "福德", "父母"];
+    const PALACE_MEANINGS = {
+      "命宮": "代表你的核心性格、天生氣質、價值觀與一生的整體運勢主軸。",
+      "兄弟": "代表手足關係、平輩好友、合作夥伴，以及你手邊可調動的現金流狀況。",
+      "夫妻": "代表感情觀、理想伴侶特質、婚姻相處模式，也能看出你與合夥對象的互動。",
+      "子女": "代表與晚輩、孩子的緣分，也反映你的創造力、桃花魅力與合夥投資運。",
+      "財帛": "代表賺錢方式、理財習慣、正財收入來源與對金錢的掌控能力。",
+      "疾厄": "代表身體健康弱點、體質傾向，以及內心潛意識的壓力反應模式。",
+      "遷移": "代表出外運、人際第一印象、貴人提攜度，以及適不適合離鄉或遠行發展。",
+      "僕役": "代表社交圈層次、同事下屬助力、客戶緣分，以及人際往來中的損益。",
+      "官祿": "代表事業發展方向、職場表現、工作態度、適合的行業類型與升遷機會。",
+      "田宅": "代表家庭氛圍、不動產置產運、祖業基礎，以及能否真正守住財庫的能力。",
+      "福德": "代表精神生活品質、內心快樂程度、興趣嗜好、情緒抗壓性與晚年福氣。",
+      "父母": "代表與父母長輩、上司主管的關係，也掌管文書契約、考試運與名聲。"
+    };
+
+    const STAR_PLAIN = {
+      "紫微": "帝王之星，主尊貴、有領導力與主見，做事喜歡掌握主導權，但有時略顯孤高。",
+      "天機": "智慧之星，反應快、點子多、善於策劃分析，但容易想太多而猶豫不決。",
+      "太陽": "博愛之星，熱情大方、樂於助人、有責任感，但容易為他人操心勞碌。",
+      "武曲": "財帛之星，務實果斷、執行力強、重視效率與金錢回報，性格較剛直。",
+      "天同": "福德之星，溫和善良、重享受、人緣好、不愛與人計較，但有時較缺乏衝勁。",
+      "廉貞": "次桃花與政治星，公關手腕佳、好勝心強、有藝術美感，情緒起伏較明顯。",
+      "天府": "財庫之星，穩重保守、善於守成與管理資源，有包容力但偶爾偏謹慎。",
+      "太陰": "溫柔之星，細膩體貼、重視家庭與美感、擅長長期理財規劃，內心較敏感。",
+      "貪狼": "第一大桃花與慾望星，多才多藝、交際能力強、敢於冒險追求目標，學習力極快。",
+      "巨門": "口才與研究星，觀察力敏銳、善於表達與分析是非，但容易因直言或疑心招惹口舌。",
+      "天相": "印星與輔佐星，公正熱心、重形象與規則、協調能力極強，是最佳幕僚人才。",
+      "天梁": "蔭星與長者星，正直有原則、喜歡照顧人、逢凶化吉能力強，有時愛說教。",
+      "七殺": "將帥之星，獨立果敢、敢衝敢拚、抗壓性強，人生起伏較大但開創力十足。",
+      "破軍": "先鋒之星，不喜一成不變、敢於打破舊局創新，變動大、執行力極強。"
+    };
+
+    const SIHUA_TABLE = {
+      "甲": ["廉貞", "破軍", "武曲", "太陽"],
+      "乙": ["天機", "天梁", "紫微", "太陰"],
+      "丙": ["天同", "天機", "文昌", "廉貞"],
+      "丁": ["太陰", "天同", "天機", "巨門"],
+      "戊": ["貪狼", "太陰", "右弼", "天機"],
+      "己": ["武曲", "貪狼", "天梁", "文曲"],
+      "庚": ["太陽", "武曲", "太陰", "天同"],
+      "辛": ["巨門", "太陽", "文曲", "文昌"],
+      "壬": ["天梁", "紫微", "左輔", "武曲"],
+      "癸": ["破軍", "巨門", "太陰", "貪狼"]
+    };
+
+    let currentZwData = null;
+
+    function runZiwei() {
+      const dateStr = document.getElementById('zw-date').value || "1995-08-18";
+      const hourIdx = parseInt(document.getElementById('zw-hour').value, 10);
+      const gender = document.getElementById('zw-gender').value;
+      const question = document.getElementById('zw-question').value.trim() || "整體本命格局與事業財運方向";
+
+      const parts = dateStr.split('-').map(Number);
+      const yGZ = getYearGanZhi(parts[0]);
+      const dGZ = getDayGanZhi(dateStr);
+      const lunarMonth = ((parts[1] + 10) % 12) + 1;
+      const lunarDay = parts[2];
+
+      // 命宮地支計算：(寅宮起正月順數至生月，逆數生時)
+      const mingBranchIdx = ((2 + (lunarMonth - 1) - hourIdx) % 12 + 12) % 12;
+      const bureaus = ["水二局", "木三局", "金四局", "土五局", "火六局"];
+      const bureauNum = [2, 3, 4, 5, 6][(parts[0] + lunarMonth + hourIdx) % 5];
+      const bureauName = bureaus[(parts[0] + lunarMonth + hourIdx) % 5];
+
+      // 紫微星系與天府星系排布
+      const ziweiPos = (mingBranchIdx + (lunarDay % 12)) % 12;
+      const tianfuPos = ((16 - ziweiPos) % 12 + 12) % 12;
+
+      const ziweiOffsets = [
+        { name: "紫微", off: 0, bright: "廟" },
+        { name: "天機", off: -1, bright: "得" },
+        { name: "太陽", off: -3, bright: "旺" },
+        { name: "武曲", off: -4, bright: "廟" },
+        { name: "天同", off: -5, bright: "平" },
+        { name: "廉貞", off: -8, bright: "平" }
+      ];
+      const tianfuOffsets = [
+        { name: "天府", off: 0, bright: "廟" },
+        { name: "太陰", off: 1, bright: "旺" },
+        { name: "貪狼", off: 2, bright: "得" },
+        { name: "巨門", off: 3, bright: "廟" },
+        { name: "天相", off: 4, bright: "得" },
+        { name: "天梁", off: 5, bright: "廟" },
+        { name: "七殺", off: 6, bright: "旺" },
+        { name: "破軍", off: 10, bright: "得" }
+      ];
+
+      const minorPool = ["文昌", "文曲", "左輔", "右弼", "天魁", "天鉞", "祿存", "天馬", "擎羊", "陀羅", "火星", "鈴星"];
+      const sihuaList = SIHUA_TABLE[yGZ.stem]; // [祿, 權, 科, 忌]
+      const sihuaLabels = ["化祿", "化權", "化科", "化忌"];
+      const sihuaClasses = ["sihua-lu", "sihua-quan", "sihua-ke", "sihua-ji"];
+
+      const palaces = Array.from({ length: 12 }, (_, bIdx) => {
+        const pIndex = ((mingBranchIdx - bIdx) % 12 + 12) % 12;
+        const pName = PALACE_NAMES[pIndex];
+        const majorStars = [];
+
+        ziweiOffsets.forEach(s => {
+          if (((ziweiPos + s.off) % 12 + 12) % 12 === bIdx) majorStars.push(s);
+        });
+        tianfuOffsets.forEach(s => {
+          if (((tianfuPos + s.off) % 12 + 12) % 12 === bIdx) majorStars.push(s);
+        });
+
+        const minors = [
+          minorPool[(bIdx * 3 + hourIdx) % 12],
+          minorPool[(bIdx * 5 + lunarDay) % 12]
+        ].filter((v, i, a) => a.indexOf(v) === i);
+
+        // 大限
+        const isYangYear = STEMS.indexOf(yGZ.stem) % 2 === 0;
+        const isClockwise = (isYangYear && gender === "男") || (!isYangYear && gender === "女");
+        const step = isClockwise ? ((bIdx - mingBranchIdx + 12) % 12) : ((mingBranchIdx - bIdx + 12) % 12);
+        const startAge = bureauNum + step * 10;
+
+        return {
+          bIdx,
+          branch: BRANCHES[bIdx],
+          stem: STEMS[(bIdx + STEMS.indexOf(yGZ.stem)) % 10],
+          pIndex,
+          pName,
+          majorStars,
+          minors,
+          daxian: `${startAge}-${startAge + 9}歲`
+        };
+      });
+
+      currentZwData = { dateStr, hourIdx, gender, question, yGZ, dGZ, bureauName, palaces, sihuaList, mingBranchIdx };
+      renderZiweiGrid(mingBranchIdx);
+    }
+
+    function renderZiweiGrid(selectedBIdx) {
+      const { dateStr, hourIdx, gender, question, yGZ, dGZ, bureauName, palaces, sihuaList, mingBranchIdx } = currentZwData;
+      // 4x4 傳統方盤順序對應地支索引:
+      // 巳(5) 午(6) 未(7) 申(8)
+      // 辰(4) [中宮]     酉(9)
+      // 卯(3) [中宮]     戌(10)
+      // 寅(2) 丑(1) 子(0) 亥(11)
+      const layoutOrder = [5, 6, 7, 8, 4, -1, 9, 3, 10, 2, 1, 0, 11];
+      const sihuaLabels = ["化祿", "化權", "化科", "化忌"];
+      const sihuaClasses = ["sihua-lu", "sihua-quan", "sihua-ke", "sihua-ji"];
+
+      // 計算三方四正 (本宮, 對宮+6, 財帛+4/+8)
+      const sanfangSet = new Set([
+        selectedBIdx,
+        (selectedBIdx + 6) % 12,
+        (selectedBIdx + 4) % 12,
+        (selectedBIdx + 8) % 12
+      ]);
+
+      const gridEl = document.getElementById('zw-grid');
+      gridEl.innerHTML = '';
+
+      layoutOrder.forEach(bIdx => {
+        if (bIdx === -1) {
+          const mingP = palaces.find(p => p.bIdx === mingBranchIdx);
+          const mingMajorStr = mingP.majorStars.length ? mingP.majorStars.map(s => s.name).join('、') : '無主星（借對宮遷移星曜）';
+          const centerDiv = document.createElement('div');
+          centerDiv.className = 'ziwei-center';
+          centerDiv.innerHTML = `
+            <h3>命盤中宮摘要（${gender}命）</h3>
+            <p><strong>陽曆：</strong>${dateStr}（${BRANCHES[hourIdx]}時）</p>
+            <p><strong>歲次干支：</strong>${yGZ.gz}年（生肖${yGZ.zodiac}）｜日柱 ${dGZ.gz}</p>
+            <p><strong>五行局數：</strong>${bureauName} ｜ <strong>命宮主星：</strong>${mingMajorStr}</p>
+            <p><strong>生年四化：</strong>${sihuaList[0]}祿、${sihuaList[1]}權、${sihuaList[2]}科、${sihuaList[3]}忌</p>
+          `;
+          gridEl.appendChild(centerDiv);
+          return;
+        }
+
+        const p = palaces.find(item => item.bIdx === bIdx);
+        const cell = document.createElement('div');
+        cell.className = 'palace-cell';
+        if (bIdx === selectedBIdx) cell.classList.add('selected');
+        else if (sanfangSet.has(bIdx)) cell.classList.add('sanfang');
+
+        const formatStar = (starName, bright = '') => {
+          const shIdx = sihuaList.indexOf(starName);
+          const shHtml = shIdx !== -1 ? `<span class="sihua-tag ${sihuaClasses[shIdx]}">${sihuaLabels[shIdx]}</span>` : '';
+          return `${starName}${bright ? `(${bright})` : ''}${shHtml}`;
+        };
+
+        const majorHtml = p.majorStars.length
+          ? p.majorStars.map(s => `<span class="star-major">${formatStar(s.name, s.bright)}</span>`).join('、')
+          : `<span style="color:#64748b; font-size:0.78rem;">（無主星）</span>`;
+
+        const minorHtml = p.minors.map(m => formatStar(m)).join(' ');
+
+        cell.innerHTML = `
+          <div>
+            <div class="palace-top">
+              <span class="palace-name">${p.pName}</span>
+              <span class="palace-branch">${p.stem}${p.branch}</span>
+            </div>
+            <div class="palace-stars">
+              <div>${majorHtml}</div>
+              <div class="star-minor" style="margin-top:3px;">${minorHtml}</div>
+            </div>
+          </div>
+          <div class="palace-footer">大限 ${p.daxian}</div>
+        `;
+        cell.onclick = () => renderZiweiGrid(bIdx);
+        gridEl.appendChild(cell);
+      });
+
+      // 產生白話說明與專業解析
+      const activeP = palaces.find(p => p.bIdx === selectedBIdx);
+      const mingP = palaces.find(p => p.bIdx === mingBranchIdx);
+      const guanP = palaces.find(p => p.pName === "官祿");
+      const caiP = palaces.find(p => p.pName === "財帛");
+
+      const activeStarsDesc = activeP.majorStars.length
+        ? activeP.majorStars.map(s => `<strong>${s.name}</strong>：${STAR_PLAIN[s.name]}`).join('<br>')
+        : `此宮無十四主星坐守，在紫微斗數中稱為「空宮」，代表這個領域的可塑性高、容易受外在環境影響，解讀時需直接借對宮（${palaces.find(p => p.bIdx === (selectedBIdx + 6) % 12).pName}）的星曜來發揮。`;
+
+      const guideHtml = `
+        <div class="plain-guide-section">
+          <div class="plain-guide-header">📖 紫微斗數專業結構解析與白話導讀</div>
+          <div class="guide-grid">
+            <div class="guide-card">
+              <h4>🎯 當前點選：【${activeP.pName}】白話解讀</h4>
+              <p style="margin-bottom:6px; color:#93c5fd;"><strong>宮位職掌：</strong>${PALACE_MEANINGS[activeP.pName]}</p>
+              <p>${activeStarsDesc}</p>
+            </div>
+            <div class="guide-card">
+              <h4>✨ 生年四化（你的人生資源與功課）</h4>
+              <ul>
+                <li><strong>${sihuaList[0]}化祿（財源與順遂處）：</strong>代表天生有緣分、容易獲得資源與快樂的領域。</li>
+                <li><strong>${sihuaList[1]}化權（掌控與執行力）：</strong>代表你最有企圖心、願意扛責任與主導的領域。</li>
+                <li><strong>${sihuaList[2]}化科（貴人與好名聲）：</strong>代表遇到困難時有貴人解圍、適合靠專業口碑發展。</li>
+                <li><strong>${sihuaList[3]}化忌（執著與人生課題）：</strong>代表你最在意、容易反覆糾結或需要多花心力修煉的地方。</li>
+              </ul>
+            </div>
+          </div>
+          <div class="vernacular-callout">
+            <strong>💡 白話白紙總結（給你的白話生活建議）：</strong><br>
+            你的本命核心由「${mingP.majorStars.length ? mingP.majorStars.map(s=>s.name).join('＋') : '空宮借星'}」主導，事業宮（官祿）坐落「${guanP.majorStars.length ? guanP.majorStars.map(s=>s.name).join('、') : '空宮'}」，財帛宮坐落「${caiP.majorStars.length ? caiP.majorStars.map(s=>s.name).join('、') : '空宮'}」。簡單來說，你天生具備${mingP.majorStars[0] ? STAR_PLAIN[mingP.majorStars[0].name].replace('。','') : '靈活適應環境的特質'}；在工作與賺錢上，只要善用「${sihuaList[0]}化祿」帶來的順勢機會，並避開「${sihuaList[3]}化忌」所在宮位的過度焦慮或衝動決策，就能穩步累積成果。
+          </div>
+        </div>
+      `;
+      document.getElementById('zw-guide').innerHTML = guideHtml;
+
+      // 準備一鍵複製文本
+      latestResults.ziwei = `【紫微斗數命盤排盤與問事紀錄】
+・出生資訊：陽曆 ${dateStr}（${BRANCHES[hourIdx]}時），${gender}命，${yGZ.gz}年（生肖${yGZ.zodiac}），${bureauName}
+・所問焦點：${question}
+・本命三方四正：
+  - 命宮（${mingP.stem}${mingP.branch}）：${mingP.majorStars.map(s=>s.name).join('、') || '無主星'}（輔煞：${mingP.minors.join('、')}）
+  - 官祿宮（${guanP.stem}${guanP.branch}）：${guanP.majorStars.map(s=>s.name).join('、') || '無主星'}
+  - 財帛宮（${caiP.stem}${caiP.branch}）：${caiP.majorStars.map(s=>s.name).join('、') || '無主星'}
+・生年四化：${sihuaList[0]}化祿、${sihuaList[1]}化權、${sihuaList[2]}化科、${sihuaList[3]}化忌
+・當前關注宮位：${activeP.pName}（大限 ${activeP.daxian}）
+
+請以專業紫微斗數命理師角度，結合三方四正與生年四化，針對我的問題「${question}」進行白話、具體且不講空話的深度解析與行動建議。`;
+    }
+
+    /* =========================================================
+       2. 奇門遁甲引擎與白話全解
+    ========================================================= */
+    const QM_DOORS = ["休門", "生門", "傷門", "杜門", "景門", "死門", "驚門", "開門"];
+    const QM_STARS = ["天蓬", "天任", "天沖", "天輔", "天英", "天芮", "天柱", "天心"];
+    const QM_GODS  = ["值符", "騰蛇", "太陰", "六合", "白虎", "玄武", "九地", "九天"];
+    const QM_STEMS = ["戊", "己", "庚", "辛", "壬", "癸", "丁", "丙", "乙"];
+    const PALACE_DIRS = [
+      { num: 4, name: "巽四宮", dir: "東南方" },
+      { num: 9, name: "離九宮", dir: "正南方" },
+      { num: 2, name: "坤二宮", dir: "西南方" },
+      { num: 3, name: "震三宮", dir: "正東方" },
+      { num: 5, name: "中五宮", dir: "中宮寄坤" },
+      { num: 7, name: "兌七宮", dir: "正西方" },
+      { num: 8, name: "艮八宮", dir: "東北方" },
+      { num: 1, name: "坎一宮", dir: "正北方" },
+      { num: 6, name: "乾六宮", dir: "西北方" }
+    ];
+
+    const DOOR_PLAIN = {
+      "開門": "大吉門（屬金）。代表開創、公開、事業升遷、求職開業、貴人提攜，利於主動出擊。",
+      "休門": "大吉門（屬水）。代表休養生息、貴人暗助、人際和合、談判緩和，適合以柔克剛。",
+      "生門": "大吉門（屬土）。代表生機勃勃、利潤財源、房產投資、起死回生，求財最喜見生門。",
+      "傷門": "小凶門（屬木）。代表競爭衝突、行動迅速、討債索賠，但也容易有損耗或口舌爭執。",
+      "杜門": "平門（屬木）。代表隱藏保密、技術研發、阻塞不通，適合低調行事，不利高調宣傳。",
+      "景門": "平門（屬火）。代表文書合約、考試面試、名聲宣傳、表面風光，需防華而不實或文書細節出錯。",
+      "死門": "大凶門（屬土）。代表停滯終結、固執死板、計畫受阻，不宜強行推進新計畫，宜收斂止損。",
+      "驚門": "凶門（屬金）。代表口舌官非、擔憂恐懼、突發驚嚇或變數，做事需格外謹慎防小人。"
+    };
+
+    function runQimen() {
+      const dateStr = document.getElementById('qm-date').value || "2026-11-19";
+      const hourIdx = parseInt(document.getElementById('qm-hour').value, 10);
+      const topic = document.getElementById('qm-topic').value;
+      const question = document.getElementById('qm-question').value.trim() || "近期行動方向與吉凶方位判斷";
+
+      const parts = dateStr.split('-').map(Number);
+      const dGZ = getDayGanZhi(dateStr);
+      const isYangDun = parts[1] >= 1 && parts[1] <= 6;
+      const juNum = ((parts[1] + parts[2] + hourIdx) % 9) + 1;
+      const dunLabel = `${isYangDun ? "陽遁" : "陰遁"}${juNum}局`;
+
+      const ringIdx = [0, 1, 2, 3, 5, 6, 7, 8]; // 對應 PALACE_DIRS 的外八宮
+      const gridData = PALACE_DIRS.map((p, idx) => {
+        if (p.num === 5) {
+          return { ...p, god: "—", star: "天禽", door: "寄坤二", tian: QM_STEMS[(juNum + 4) % 9], di: QM_STEMS[4], isGood: true };
+        }
+        const rPos = ringIdx.indexOf(idx);
+        const shift = (juNum + hourIdx + rPos) % 8;
+        const door = QM_DOORS[shift];
+        const star = QM_STARS[(shift + 2) % 8];
+        const god = QM_GODS[(shift + 5) % 8];
+        const tian = QM_STEMS[(shift + parts[2]) % 9];
+        const di = QM_STEMS[(rPos + juNum) % 9];
+        const isGood = ["開門", "休門", "生門"].includes(door);
+        const isBad = ["死門", "驚門", "傷門"].includes(door);
+        return { ...p, god, star, door, tian, di, isGood, isBad };
+      });
+
+      const shengPalace = gridData.find(g => g.door === "生門");
+      const kaiPalace = gridData.find(g => g.door === "開門");
+      const xiuPalace = gridData.find(g => g.door === "休門");
+
+      document.getElementById('qm-summary').innerHTML = `
+        <div style="background:var(--bg-card); padding:10px 14px; border-radius:8px; border:1px solid var(--border-subtle); font-size:0.86rem; display:flex; flex-wrap:wrap; gap:14px;">
+          <span><strong>起局時間：</strong>${dateStr} ${BRANCHES[hourIdx]}時（日柱 ${dGZ.gz}）</span>
+          <span><strong>局數口徑：</strong><span style="color:#fbbf24; font-weight:700;">${dunLabel}</span></span>
+          <span><strong>三吉門方位：</strong>開門在${kaiPalace.dir}、生門在${shengPalace.dir}、休門在${xiuPalace.dir}</span>
+        </div>
+      `;
+
+      const gridEl = document.getElementById('qm-grid');
+      gridEl.innerHTML = '';
+      gridData.forEach(cell => {
+        const div = document.createElement('div');
+        div.className = 'nine-cell';
+        if (cell.isGood) div.classList.add('auspicious');
+        if (cell.isBad) div.classList.add('inauspicious');
+
+        const doorColor = cell.isGood ? '#34d399' : (cell.isBad ? '#f87171' : '#fbbf24');
+        div.innerHTML = `
+          <div style="display:flex; justify-content:space-between; font-size:0.78rem; color:#94a3b8;">
+            <span>${cell.god}</span>
+            <span>${cell.name}（${cell.dir}）</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin:8px 0;">
+            <span style="font-size:0.95rem; font-weight:700; color:#e2e8f0;">${cell.star}</span>
+            <span style="font-size:1.05rem; font-weight:800; color:${doorColor};">${cell.door}</span>
+            <span style="font-size:0.95rem; font-weight:700; color:#38bdf8;">${cell.tian}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:0.76rem; color:#94a3b8; border-top:1px dashed rgba(148,163,184,0.2); padding-top:4px;">
+            <span>${cell.isGood ? '★ 吉門方位' : (cell.isBad ? '▲ 宜避忌' : '● 平穩方')}</span>
+            <span>地盤：${cell.di}</span>
+          </div>
+        `;
+        gridEl.appendChild(div);
+      });
+
+      const guideHtml = `
+        <div class="plain-guide-section">
+          <div class="plain-guide-header">📖 奇門遁甲專業符號解析與白話導讀</div>
+          <div class="guide-grid">
+            <div class="guide-card">
+              <h4>🚪 三大吉門方位解讀（看行動突破口）</h4>
+              <ul>
+                <li><strong>開門（${kaiPalace.dir}・${kaiPalace.star}）：</strong>${DOOR_PLAIN["開門"]}</li>
+                <li><strong>生門（${shengPalace.dir}・${shengPalace.star}）：</strong>${DOOR_PLAIN["生門"]}</li>
+                <li><strong>休門（${xiuPalace.dir}・${xiuPalace.star}）：</strong>${DOOR_PLAIN["休門"]}</li>
+              </ul>
+            </div>
+            <div class="guide-card">
+              <h4>🔍 如何看懂九宮格子裡的四個元素？</h4>
+              <ul>
+                <li><strong>左上（八神）：</strong>代表無形的磁場與貴人助力（如「值符」為最大貴人，「六合」利合作談判）。</li>
+                <li><strong>中左（九星）：</strong>代表天時大環境趨勢（如「天心、天輔」利策劃學習，「天任」利穩健踏實）。</li>
+                <li><strong>正中（八門）：</strong>代表人事行動吉凶，最重要看「開、休、生」三吉門。</li>
+                <li><strong>上下天干（天盤／地盤）：</strong>代表事情的表面現象與背後隱藏的真實動機。</li>
+              </ul>
+            </div>
+          </div>
+          <div class="vernacular-callout">
+            <strong>💡 白話白紙總結（直接告訴你怎麼做）：</strong><br>
+            針對你問的「${topic}」，此局為<strong>${dunLabel}</strong>。最有利的行動與貴人方位在<strong>${kaiPalace.dir}（開門）</strong>與<strong>${shengPalace.dir}（生門）</strong>——如果你要去談判、面試、拜訪客戶或擺放辦公桌，優先朝向這兩個方位，或找來自這兩個方向的貴人協助，成功率最高。同時避免往「死門、驚門」所在方位硬碰硬，行事採取「先穩後進」策略最為有利。
+          </div>
+        </div>
+      `;
+      document.getElementById('qm-guide').innerHTML = guideHtml;
+
+      latestResults.qimen = `【奇門遁甲起局排盤與問事紀錄】
+・起局時間：${dateStr} ${BRANCHES[hourIdx]}時（日柱 ${dGZ.gz}），局數：${dunLabel}
+・占問類別：${topic}
+・具體問題：${question}
+・九宮格局摘要：
+${gridData.map(g => `  - ${g.name}(${g.dir})：神【${g.god}】 星【${g.star}】 門【${g.door}】 天盤【${g.tian}】/地盤【${g.di}】`).join('\n')}
+
+請以專業奇門遁甲預測師角度，針對我的事類「${topic}」與問題「${question}」，找出用神落宮與三吉門關係，提供白話、明確的吉凶趨勢判斷與具體行動方位/時機建議。`;
+    }
+
+    /* =========================================================
+       3. 四柱八字引擎與白話全解
+    ========================================================= */
+    const TEN_GODS_PLAIN = {
+      "比肩": "代表同輩朋友、合夥人、自主意識強、重義氣，喜歡靠自己實力打拚。",
+      "劫財": "代表行動力快、社交手腕佳、敢衝敢拚，但要注意金錢開銷大或替人作保破財。",
+      "食神": "代表才華表達、溫和有福氣、重生活品質與美感，屬於細水長流型的生財能力。",
+      "傷官": "代表聰明才智、創意十足、不喜受拘束、口才犀利，適合靠專業技術或創意吃飯。",
+      "偏財": "代表敏銳的商業嗅覺、慷慨大方、善於捕捉投資或副業機會，財運波動較大。",
+      "正財": "代表腳踏實地、重視穩定收入、勤儉務實、責任感強，適合穩定累積資產。",
+      "七殺": "代表魄力、果斷、抗壓性強、有開創危機的膽識，壓力越大越能激發潛能。",
+      "正官": "代表自律守法、重視名譽地位、有管理與組織能力，適合在體制或大企業發展。",
+      "偏印": "代表直覺敏銳、思維獨特、喜歡冷門或深度研究（如玄學、科技、哲學），略顯孤僻。",
+      "正印": "代表貴人提攜、學習吸收力強、善良有包容心、重精神成長與長輩緣分。"
+    };
+
+    function getTenGod(dayStemIdx, targetStemIdx) {
+      const diff = (targetStemIdx - dayStemIdx + 10) % 10;
+      const map = ["比肩", "劫財", "食神", "傷官", "偏財", "正財", "七殺", "正官", "偏印", "正印"];
+      return map[diff];
+    }
+
+    function runBazi() {
+      const dateStr = document.getElementById('bz-date').value || "1992-04-22";
+      const hourIdx = parseInt(document.getElementById('bz-hour').value, 10);
+      const gender = document.getElementById('bz-gender').value;
+      const question = document.getElementById('bz-question').value.trim() || "本命性格優勢、適合職業與喜用神建議";
+
+      const parts = dateStr.split('-').map(Number);
+      const yGZ = getYearGanZhi(parts[0]);
+      const dGZ = getDayGanZhi(dateStr);
+
+      // 月柱（五虎遁）
+      const mBranchIdx = (parts[1] + 1) % 12;
+      const yStemIdx = STEMS.indexOf(yGZ.stem);
+      const mStemStart = [2, 4, 6, 8, 0][yStemIdx % 5];
+      const mStemIdx = (mStemStart + ((mBranchIdx - 2 + 12) % 12)) % 10;
+      const mStem = STEMS[mStemIdx];
+      const mBranch = BRANCHES[mBranchIdx];
+
+      // 時柱（五鼠遁）
+      const hStemStart = [0, 2, 4, 6, 8][dGZ.sIdx % 5];
+      const hStemIdx = (hStemStart + hourIdx) % 10;
+      const hStem = STEMS[hStemIdx];
+      const hBranch = BRANCHES[hourIdx];
+
+      const pillars = [
+        { title: "年柱（祖輩/早年）", stem: yGZ.stem, branch: yGZ.branch, tenGod: getTenGod(dGZ.sIdx, yStemIdx), isDay: false },
+        { title: "月柱（父母/事業宮）", stem: mStem, branch: mBranch, tenGod: getTenGod(dGZ.sIdx, mStemIdx), isDay: false },
+        { title: "日柱（日主/配偶宮）", stem: dGZ.stem, branch: dGZ.branch, tenGod: "日主元神", isDay: true },
+        { title: "時柱（子女/晚年）", stem: hStem, branch: hBranch, tenGod: getTenGod(dGZ.sIdx, hStemIdx), isDay: false }
+      ];
+
+      document.getElementById('bz-pillars').innerHTML = pillars.map(p => `
+        <div class="pillar-box ${p.isDay ? 'day-master' : ''}">
+          <div class="pillar-title">${p.title}</div>
+          <div style="font-size:0.75rem; color:#34d399; font-weight:700; margin-bottom:4px;">${p.tenGod}</div>
+          <div class="pillar-stem">${p.stem}</div>
+          <div class="pillar-branch">${p.branch}</div>
+          <div class="pillar-meta">${STEM_EL[p.stem]}${BRANCH_EL[p.branch]}</div>
+        </div>
+      `).join('');
+
+      // 計算五行比例（含月令加權）
+      const scores = { "木": 10, "火": 10, "土": 10, "金": 10, "水": 10 };
+      pillars.forEach((p, idx) => {
+        const w = idx === 1 ? 24 : 14; // 月令權重最高
+        scores[STEM_EL[p.stem]] += 14;
+        scores[BRANCH_EL[p.branch]] += w;
+      });
+      const total = Object.values(scores).reduce((a, b) => a + b, 0);
+      const elColors = { "木": "#10b981", "火": "#f43f5e", "土": "#f59e0b", "金": "#e2e8f0", "水": "#38bdf8" };
+
+      const sortedEls = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+      const strongestEl = sortedEls[0][0];
+      const weakestEl = sortedEls[sortedEls.length - 1][0];
+      const secondWeakEl = sortedEls[sortedEls.length - 2][0];
+
+      document.getElementById('bz-elements').innerHTML = `
+        <div style="font-size:0.88rem; font-weight:700; color:#fbbf24; margin-bottom:10px;">五行能量分佈比例（含月令得令加權）</div>
+        ${Object.entries(scores).map(([el, val]) => {
+          const pct = Math.round((val / total) * 100);
+          return `
+            <div class="bar-row">
+              <span class="bar-label" style="color:${elColors[el]}">${el}行能量</span>
+              <div class="bar-track"><div class="bar-fill" style="width:${pct}%; background:${elColors[el]};"></div></div>
+              <span class="bar-val">${pct}%</span>
+            </div>
+          `;
+        }).join('')}
+      `;
+
+      const dayEl = STEM_EL[dGZ.stem];
+      const monthGod = pillars[1].tenGod;
+      const guideHtml = `
+        <div class="plain-guide-section">
+          <div class="plain-guide-header">📖 四柱八字專業解析與白話導讀</div>
+          <div class="guide-grid">
+            <div class="guide-card">
+              <h4>🌟 日主【${dGZ.stem}${dayEl}】代表什麼個性？</h4>
+              <p>你的日柱天干為「<strong>${dGZ.stem}</strong>」，五行屬<strong>${dayEl}</strong>。這代表你內在最核心的行事風格；而決定你外在事業格局的月柱十神是「<strong>${monthGod}</strong>」——${TEN_GODS_PLAIN[monthGod]}</p>
+            </div>
+            <div class="guide-card">
+              <h4>⚖️ 喜用神與生活開運補運法</h4>
+              <p>命盤中<strong>${strongestEl}行</strong>能量最旺，而<strong>${weakestEl}行</strong>與<strong>${secondWeakEl}行</strong>相對偏弱，可作為你的喜用神方向：</p>
+              <ul style="margin-top:4px;">
+                <li><strong>補【${weakestEl}】方位與色彩：</strong>${getElementAdvice(weakestEl)}</li>
+                <li><strong>補【${secondWeakEl}】輔助能量：</strong>${getElementAdvice(secondWeakEl)}</li>
+              </ul>
+            </div>
+          </div>
+          <div class="vernacular-callout">
+            <strong>💡 白話白紙總結（看懂你的天賦與職場定位）：</strong><br>
+            你的八字四柱為「<strong>${yGZ.gz}年、${mStem}${mBranch}月、${dGZ.gz}日、${hStem}${hBranch}時</strong>」。整體命局以「${dayEl}」為核心，月令帶有「${monthGod}」的能量，意味著你在職場上最適合發揮「${TEN_GODS_PLAIN[monthGod].replace('代表','').replace('。','')}」的優勢。平時做重大決定或挑選合作夥伴時，多親近五行屬<strong>${weakestEl}</strong>或<strong>${secondWeakEl}</strong>的領域與環境，能讓你的運勢更加平衡順遂。
+          </div>
+        </div>
+      `;
+      document.getElementById('bz-guide').innerHTML = guideHtml;
+
+      latestResults.bazi = `【四柱八字排盤與命理諮詢紀錄】
+・基本資料：陽曆 ${dateStr} ${hBranch}時，${gender}命
+・四柱八字：${yGZ.gz}（年柱/${pillars[0].tenGod}）｜ ${mStem}${mBranch}（月柱/${monthGod}）｜ ${dGZ.gz}（日主）｜ ${hStem}${hBranch}（時柱/${pillars[3].tenGod}）
+・日主屬性：${dGZ.stem}（五行屬${dayEl}）
+・五行能量佔比：${Object.entries(scores).map(([k,v]) => `${k}${Math.round(v/total*100)}%`).join('、')}（最旺：${strongestEl}，偏弱喜補：${weakestEl}、${secondWeakEl}）
+・諮詢問題：${question}
+
+請以專業子平八字命理師角度，結合日主強弱、月令十神格局與喜用神，針對我的問題「${question}」提供白話、具體的職業方向、財運與近期流年建議。`;
+    }
+
+    function getElementAdvice(el) {
+      const map = {
+        "木": "多接觸綠色植物、森林步道，幸運色為青色/綠色，適合文化、教育、設計、企劃類工作。",
+        "火": "多曬太陽、保持居室明亮溫暖，幸運色為紅色/紫色，適合行銷、演講、餐飲、科技網路產業。",
+        "土": "多親近大自然山林、培養規律作息，幸運色為黃色/咖啡色，適合房產、管理、顧問、金融穩健領域。",
+        "金": "配戴金屬飾品、保持環境整潔俐落，幸運色為白色/金色，適合金融、法律、工程、精密製造領域。",
+        "水": "多喝水、靠近湖海或流動水景，幸運色為黑色/深藍色，適合貿易、物流、旅遊、傳播與顧問服務。"
+      };
+      return map[el] || "";
+    }
+
+    /* =========================================================
+       4. 月老姻緣引擎與白話全解
+    ========================================================= */
+    const YUELAO_POEMS = [
+      { title: "上上籤・千里姻緣一線牽", poem: "關關雎鳩在河之洲，窈窕淑女君子好逑；紅線既繫無須多慮，水到渠成共白頭。", plain: "這是一支非常吉祥的良緣籤！代表你們之間存在真實且深厚的緣分基礎，只要真誠溝通、不猜忌，感情會自然往穩定長久的方向推進。" },
+      { title: "上吉籤・雲開月明見真心", poem: "雲散月明照滿樓，前塵疑慮一時休；真心相待終有報，花好月圓在深秋。", plain: "過去的誤會或曖昧不明的狀態即將撥雲見日。關鍵在於「主動表達真實想法」，別讓對方猜心，秋冬季或農曆七、八月是關係升溫的黃金期。" },
+      { title: "中吉籤・慢火細燉方成佳餚", poem: "好花須得春風吹，急水行舟莫強追；彼此退讓三分地，自有良辰美景隨。", plain: "緣分已經在路上，但目前的節奏不宜太急躁。雙方在生活習慣或價值觀上還需要一點磨合時間，多傾聽、少爭對錯，感情會越陳越香。" },
+      { title: "中平籤・先修己心自引鳳凰", poem: "莫問良緣何處尋，先將明鏡拭微塵；自身花開蝴蝶自來，時機一到喜臨門。", plain: "月老提醒你：現階段把重心放回提升自己的生活品質與情緒穩定度，當你狀態變好、散發自信時，真正適合你的正緣自然會被吸引過來。" }
+    ];
+
+    function runYinyuan() {
+      const d1 = document.getElementById('yy-date1').value || "1995-05-12";
+      const d2 = document.getElementById('yy-date2').value;
+      const status = document.getElementById('yy-status').value;
+      const question = document.getElementById('yy-question').value.trim() || "感情未來發展與相處建議";
+
+      const p1 = d1.split('-').map(Number);
+      const y1 = getYearGanZhi(p1[0]);
+      const day1 = getDayGanZhi(d1);
+
+      // 桃花位計算（依年支三合）
+      const peachMap = {
+        "申":"正西方（酉位）", "子":"正西方（酉位）", "辰":"正西方（酉位）",
+        "寅":"正東方（卯位）", "午":"正東方（卯位）", "戌":"正東方（卯位）",
+        "巳":"正南方（午位）", "酉":"正南方（午位）", "丑":"正南方（午位）",
+        "亥":"正北方（子位）", "卯":"正北方（子位）", "未":"正北方（子位）"
+      };
+      const peachDir = peachMap[y1.branch];
+
+      let matchScore = 82;
+      let matchDesc = "目前設定為單身求正緣模式，重點聚焦於你的本命桃花方位與正緣特質分析。";
+      let partnerText = "未輸入對象生日（單身求緣）";
+
+      if (d2) {
+        const p2 = d2.split('-').map(Number);
+        const y2 = getYearGanZhi(p2[0]);
+        const day2 = getDayGanZhi(d2);
+        const b1Idx = BRANCHES.indexOf(y1.branch);
+        const b2Idx = BRANCHES.indexOf(y2.branch);
+        const diff = Math.abs(b1Idx - b2Idx);
+
+        if ((b1Idx + b2Idx) % 12 === 1) {
+          matchScore = 94;
+          matchDesc = `雙方生肖為【${y1.zodiac}】與【${y2.zodiac}】，屬於傳統命理中的「生肖六合」貴人組合，天生容易互相吸引、價值觀契合度極高。`;
+        } else if (diff === 4 || diff === 8) {
+          matchScore = 90;
+          matchDesc = `雙方生肖為【${y1.zodiac}】與【${y2.zodiac}】，屬於「生肖三合」吉配，相處起來默契十足，能在事業與生活上互相幫襯。`;
+        } else if (diff === 6) {
+          matchScore = 72;
+          matchDesc = `雙方生肖為【${y1.zodiac}】與【${y2.zodiac}】，屬於「生肖六沖」組合，個性互補但想法容易南轅北轍，相處秘訣在於「聚少離多、給彼此獨立空間」。`;
+        } else {
+          matchScore = 84;
+          matchDesc = `雙方生肖為【${y1.zodiac}】與【${y2.zodiac}】，日柱分別為「${day1.gz}」與「${day2.gz}」，屬於平穩溫和的緣分組合，只要建立共同興趣就能長久穩定。`;
+        }
+        partnerText = `${d2}（${y2.gz}年・生肖${y2.zodiac}・日柱${day2.gz}）`;
+      }
+
+      const poemIdx = (p1[0] + p1[1] + p1[2] + (d2 ? parseInt(d2.split('-')[2], 10) : 7)) % YUELAO_POEMS.length;
+      const chosenPoem = YUELAO_POEMS[poemIdx];
+
+      document.getElementById('yy-result').innerHTML = `
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-bottom:14px;">
+          <div class="guide-card">
+            <h4>💞 姻緣契合度評估</h4>
+            <div style="font-size:1.8rem; font-weight:800; color:#f43f5e; margin:4px 0;">${matchScore} 分</div>
+            <p>${matchDesc}</p>
+          </div>
+          <div class="guide-card">
+            <h4>🌸 你的本命紅鸞桃花位</h4>
+            <div style="font-size:1.25rem; font-weight:800; color:#fbbf24; margin:6px 0;">${peachDir}</div>
+            <p>生肖屬<strong>${y1.zodiac}</strong>的你，桃花磁場集中在<strong>${peachDir}</strong>。可在臥室或客廳此方位擺放鮮花或粉色系小物催旺良緣。</p>
+          </div>
+        </div>
+
+        <div style="background:linear-gradient(135deg, #31102f, #1e293b); border:1px solid #ec4899; border-radius:10px; padding:16px; margin-bottom:14px;">
+          <div style="font-size:0.82rem; color:#f9a8d4; font-weight:700;">🏮 月老感應靈籤</div>
+          <div style="font-size:1.15rem; font-weight:800; color:#fde047; margin:4px 0;">${chosenPoem.title}</div>
+          <p style="font-size:0.95rem; color:#fce7f3; font-style:italic; margin:8px 0;">「${chosenPoem.poem}」</p>
+          <p style="font-size:0.86rem; color:#e2e8f0;"><strong>籤詩白話翻譯：</strong>${chosenPoem.plain}</p>
+        </div>
+
+        <div class="plain-guide-section">
+          <div class="plain-guide-header">📖 月老姻緣專業解析與白話導讀</div>
+          <div class="vernacular-callout">
+            <strong>💡 白話白紙總結（給你的感情行動建議）：</strong><br>
+            針對你目前的狀態「<strong>${status}</strong>」，命盤顯示你的日柱為「${day1.gz}」，先天感情態度重視真誠與安全感。${chosenPoem.plain} 建議近期在溝通時多用「我感覺、我希望」代替指責，並善用你的<strong>${peachDir}</strong>桃花方位增加社交或約會頻率，能有效讓關係往更甜蜜的方向發展。
+          </div>
+        </div>
+      `;
+
+      latestResults.yinyuan = `【月老姻緣測算與靈籤問事紀錄】
+・己方資料：${d1}（${y1.gz}年・生肖${y1.zodiac}・日柱${day1.gz}）
+・對方資料：${partnerText}
+・感情狀態：${status}
+・緣分契合度：${matchScore} 分（${matchDesc}）
+・本命桃花位：${peachDir}
+・求得月老靈籤：【${chosenPoem.title}】「${chosenPoem.poem}」
+・心中問題：${question}
+
+請以資深姻緣合婚命理師角度，結合雙方的生肖日柱互動與這支月老靈籤，針對我的問題「${question}」給出白話、暖心且具體的感情相處與推進建議。`;
+    }
+
+    /* =========================================================
+       5. 陽宅風水引擎與白話全解
+    ========================================================= */
+    const BAZHAI_MAP = {
+      "坎宅（坐北朝南）": { group: "東四宅", shengqi: "東南方", tianyi: "正東方", yannian: "正南方", fuwei: "正北方", jueming: "西南方", wugui: "東北方" },
+      "離宅（坐南朝北）": { group: "東四宅", shengqi: "正東方", tianyi: "東南方", yannian: "正北方", fuwei: "正南方", jueming: "西北方", wugui: "正西方" },
+      "震宅（坐東朝西）": { group: "東四宅", shengqi: "正南方", tianyi: "正北方", yannian: "東南方", fuwei: "正東方", jueming: "正西方", wugui: "西北方" },
+      "兌宅（坐西朝東）": { group: "西四宅", shengqi: "西北方", tianyi: "西南方", yannian: "東北方", fuwei: "正西方", jueming: "正東方", wugui: "正南方" },
+      "巽宅（坐東南朝西北）": { group: "東四宅", shengqi: "正北方", tianyi: "正南方", yannian: "正東方", fuwei: "東南方", jueming: "東北方", wugui: "西南方" },
+      "乾宅（坐西北朝東南）": { group: "西四宅", shengqi: "正西方", tianyi: "東北方", yannian: "西南方", fuwei: "西北方", jueming: "正南方", wugui: "正東方" },
+      "坤宅（坐西南朝東北）": { group: "西四宅", shengqi: "東北方", tianyi: "正西方", yannian: "西北方", fuwei: "西南方", jueming: "正北方", wugui: "東南方" },
+      "艮宅（坐東北朝西南）": { group: "西四宅", shengqi: "西南方", tianyi: "西北方", yannian: "正西方", fuwei: "東北方", jueming: "東南方", wugui: "正北方" }
+    };
+
+    // 2026丙午年一白貪狼入中宮九宮飛星
+    const FLYING_2026 = [
+      { dir: "東南方", star: "九紫右弼星（當運喜慶）", good: true, desc: "九運當旺大吉星，利婚嫁喜慶、人緣貴人與偏財。" },
+      { dir: "正南方", star: "五黃廉貞星（流年大煞）", good: false, desc: "流年最忌動土裝修，宜靜不宜動，可放銅葫蘆或金屬擺件化解。" },
+      { dir: "西南方", star: "七赤破軍星（退運肅殺）", good: false, desc: "易有口舌是非或破財，宜保持整潔明亮，忌放尖銳金屬。" },
+      { dir: "正東方", star: "八白左輔星（正財吉星）", good: true, desc: "流年正財位，利工作薪資與事業穩健成長，宜保持明亮整潔。" },
+      { dir: "中宮",   star: "一白貪狼星（桃花文昌）", good: true, desc: "流年入中宮，利人際溝通、學習進修與名聲提升。" },
+      { dir: "正西方", star: "三碧祿存星（是非官非）", good: false, desc: "易引發情緒急躁與爭執，可放紅色地墊或暖色燈光以火泄木。" },
+      { dir: "東北方", star: "四綠文曲星（流年文昌）", good: true, desc: "利考試升學、創意企劃與文書簽約，最適合設置書桌。" },
+      { dir: "正北方", star: "六白武曲星（偏財貴人）", good: true, desc: "利升遷掌權、出外貴人與偏財運勢，宜保持空氣流通。" },
+      { dir: "西北方", star: "二黑巨門星（流年病符）", good: false, desc: "影響健康睡眠，忌堆放雜物，床頭若在此位宜加強通風除濕。" }
+    ];
+
+    function runFengshui() {
+      const facing = document.getElementById('fs-facing').value;
+      const year = parseInt(document.getElementById('fs-year').value, 10) || 1990;
+      const gender = document.getElementById('fs-gender').value;
+      const question = document.getElementById('fs-question').value.trim() || "客廳財位、書房文昌與臥室吉凶方位佈局";
+
+      const house = BAZHAI_MAP[facing];
+      // 簡化命卦東四命/西四命判定
+      const lastTwo = year % 100;
+      const sumDigits = Math.floor(lastTwo / 10) + (lastTwo % 10);
+      const mingNum = gender === "男" ? (10 - (sumDigits % 9)) % 9 : (sumDigits + 5) % 9;
+      const personGroup = [1, 3, 4, 9].includes(mingNum) ? "東四命" : "西四命";
+      const isMatch = (house.group === "東四宅" && personGroup === "東四命") || (house.group === "西四宅" && personGroup === "西四命");
+
+      document.getElementById('fs-summary').innerHTML = `
+        <div style="background:var(--bg-card); padding:10px 14px; border-radius:8px; border:1px solid var(--border-subtle); font-size:0.86rem; display:flex; flex-wrap:wrap; gap:14px;">
+          <span><strong>陽宅屬性：</strong>${facing}（<span style="color:#38bdf8;">${house.group}</span>）</span>
+          <span><strong>屋主命卦：</strong>${personGroup}（${isMatch ? '<span style="color:#34d399; font-weight:700;">宅命相配・大吉</span>' : '<span style="color:#fbbf24; font-weight:700;">東西互交・宜以床向調候</span>'}）</span>
+          <span><strong>八宅生氣大財位：</strong><span style="color:#fbbf24; font-weight:700;">${house.shengqi}</span></span>
+        </div>
+      `;
+
+      const gridEl = document.getElementById('fs-grid');
+      gridEl.innerHTML = FLYING_2026.map(cell => `
+        <div class="nine-cell ${cell.good ? 'auspicious' : 'inauspicious'}">
+          <div style="display:flex; justify-content:space-between; font-size:0.8rem; font-weight:700; color:#fbbf24;">
+            <span>${cell.dir}</span>
+            <span>${cell.good ? '★ 吉星方' : '▲ 煞星方'}</span>
+          </div>
+          <div style="font-size:0.88rem; font-weight:700; color:#f8fafc; margin:6px 0;">${cell.star}</div>
+          <div style="font-size:0.78rem; color:#cbd5e1; line-height:1.45;">${cell.desc}</div>
+        </div>
+      `).join('');
+
+      const guideHtml = `
+        <div class="plain-guide-section">
+          <div class="plain-guide-header">📖 陽宅風水專業解析與白話導讀</div>
+          <div class="guide-grid">
+            <div class="guide-card">
+              <h4>🧭 八宅四大吉位白話用法（固定不變）</h4>
+              <ul>
+                <li><strong>生氣位（${house.shengqi}・第一大吉）：</strong>主財運、活力與事業突破，最適合放客廳沙發、辦公桌或招財植物。</li>
+                <li><strong>天醫位（${house.tianyi}・健康貴人）：</strong>主身體健康、睡眠安穩與貴人相助，最適合做為主臥室或長輩房。</li>
+                <li><strong>延年位（${house.yannian}・感情和諧）：</strong>主夫妻感情、人際圓融與家庭向心力。</li>
+                <li><strong>伏位（${house.fuwei}・平穩思考）：</strong>主靜心閱讀、思緒清晰，適合做書房或冥想角落。</li>
+              </ul>
+            </div>
+            <div class="guide-card">
+              <h4>✨ 2026 流年飛星佈局重點（每年輪動）</h4>
+              <ul>
+                <li><strong>流年正財方（正東方）與喜慶方（東南方）：</strong>保持採光充足、空氣流通，可擺放常綠盆栽或暖色燈飾催旺。</li>
+                <li><strong>流年文昌方（東北方）：</strong>適合孩子讀書或大人處理重要合約企劃。</li>
+                <li><strong>流年五黃煞（正南方）與病符（西北方）：</strong>這兩個方位今年<strong>切忌敲打裝修</strong>，保持乾淨空曠、少堆雜物即是最好的化解。</li>
+              </ul>
+            </div>
+          </div>
+          <div class="vernacular-callout">
+            <strong>💡 白話白紙總結（不用花大錢改裝潢的風水重點）：</strong><br>
+            這間房子屬於「<strong>${facing}（${house.group}）</strong>」，屋主為「<strong>${personGroup}</strong>」。風水最核心的口訣是<strong>「明廳暗房、藏風聚氣、吉位宜動、凶位宜靜」</strong>。你只需要把家裡的<strong>${house.shengqi}（八宅生氣位）</strong>與<strong>正東方（流年財位）</strong>收拾乾淨、增加照明，同時讓<strong>正南方（五黃位）</strong>保持安靜不堆雜物，就能輕鬆提升全家人的財運與居住舒適度。
+          </div>
+        </div>
+      `;
+      document.getElementById('fs-guide').innerHTML = guideHtml;
+
+      latestResults.fengshui = `【陽宅風水堪輿與流年飛星紀錄】
+・房屋坐向：${facing}（${house.group}）
+・屋主資訊：${year}年生（${gender}），命卦屬${personGroup}（${isMatch ? '宅命相配' : '需以床位朝向調和'}）
+・八宅四大吉位：生氣大財位【${house.shengqi}】、天醫健康位【${house.tianyi}】、延年感情位【${house.yannian}】、伏位【${house.fuwei}】
+・八宅凶位避忌：絕命位【${house.jueming}】、五鬼位【${house.wugui}】
+・2026丙午流年飛星重點：正財位在正東方（八白）、喜慶位在東南方（九紫）、文昌位在東北方（四綠）、五黃大煞在正南方、二黑病符在西北方
+・諮詢問題：${question}
+
+請以專業陽宅風水師角度，針對我的居家需求「${question}」，結合八宅吉凶方位與流年飛星，給出白話、實用且免大興土木的居家擺設與調整建議。`;
+    }
+
+    /* =========================================================
+       6. 塔羅占卜引擎與白話全解
+    ========================================================= */
+    const TAROT_DECK = [
+      { name: "0 愚者 (The Fool)", el: "風", up: "新的開始、勇敢跨出舒適圈、保持純真與好奇心，不設限地迎接冒險。", rev: "盲目衝動、缺乏周全計畫、逃避責任或因猶豫而錯過良機。" },
+      { name: "I 魔術師 (The Magician)", el: "風", up: "資源與能力皆已具備、溝通說服力極強、主動創造機會並將想法落地。", rev: "能力分散、華而不實、溝通誤解或缺乏自信導致遲遲未行動。" },
+      { name: "II 女祭司 (The High Priestess)", el: "水", up: "直覺敏銳、冷靜觀察、向內沉澱思考，真相即將浮現，宜靜觀其變。", rev: "情緒壓抑、過度多疑、忽略內心直覺或秘密被提前揭露。" },
+      { name: "III 皇后 (The Empress)", el: "土", up: "豐盛富足、創造力爆發、溫暖包容、情感與物質雙收的滋養時期。", rev: "過度依賴他人、生活作息失衡、創意受阻或過度操心。" },
+      { name: "IV 皇帝 (The Emperor)", el: "火", up: "建立秩序與規則、展現領導魄力、務實穩定、掌控全局並獲得權威認可。", rev: "過度固執專制、缺乏彈性、控制欲過強或面臨體制壓力。" },
+      { name: "V 教皇 (The Hierophant)", el: "土", up: "尋求專業前輩指導、遵循正統規則、學習進修與獲得長輩貴人提攜。", rev: "打破傳統框架、不願受教條束縛、獨立思考但可能缺乏支援。" },
+      { name: "VI 戀人 (The Lovers)", el: "風", up: "和諧的合作關係、價值觀高度契合、面臨重要的人生選擇並做出真心決定。", rev: "關係失衡、溝通出現裂痕、在兩個選項之間猶豫不決。" },
+      { name: "VII 戰車 (The Chariot)", el: "水", up: "意志堅定、克服重重阻礙、快速推進目標並取得勝利，適合全力衝刺。", rev: "方向失控、內心矛盾拉扯、過於急躁反而導致進度受阻。" },
+      { name: "VIII 力量 (Strength)", el: "火", up: "以柔克剛、內在韌性與耐心極強、用溫和卻堅定的態度化解難題。", rev: "自我懷疑、內心焦躁不安、失去耐心或感到能量耗竭。" },
+      { name: "IX 隱士 (The Hermit)", el: "土", up: "暫時遠離喧囂、深度自我反省、尋找人生真正方向，靜下心來自有答案。", rev: "過度孤僻封閉、拒絕外界幫助、陷入鑽牛角尖的孤獨感。" },
+      { name: "X 命運之輪 (Wheel of Fortune)", el: "火", up: "轉機降臨、順勢而為、幸運的循環啟動，把握當下出現的新契機。", rev: "計畫趕不上變化、暫時遇到停滯期，需耐心等待時機反轉。" },
+      { name: "XI 正義 (Justice)", el: "風", up: "公平公正、理性客觀分析利弊、合約順利簽署、過去的努力獲得應有回報。", rev: "處境有失公平、逃避現實責任、決策過度情緒化而失準。" },
+      { name: "XII 倒吊人 (The Hanged Man)", el: "水", up: "換個角度看問題、暫時停下腳步等待、以退為進反而能獲得全新領悟。", rev: "無謂的犧牲與內耗、固執己見不願轉念、陷入僵局原地踏步。" },
+      { name: "XIII 死神 (Death)", el: "水", up: "徹底結束舊階段、斷捨離不再適合的人事物，為全新的人生騰出空間。", rev: "抗拒改變、緊抓著過去不放，導致轉型過程變得拖泥帶水。" },
+      { name: "XIV 節制 (Temperance)", el: "火", up: "溝通協調順暢、找到工作與生活的完美平衡點、循序漸進融合不同資源。", rev: "內外失衡、缺乏耐心急於求成、資源分配不均。" },
+      { name: "XV 惡魔 (The Devil)", el: "土", up: "看清內心的執著與物慾誘惑、在商業與金錢領域展現強大的企圖心。", rev: "掙脫束縛與壞習慣、看破不健康的關係或焦慮模式，重獲自由。" },
+      { name: "XVI 高塔 (The Tower)", el: "火", up: "突如其來的劇烈變化打破舊有假象，雖然震撼卻能讓你看清真相並重建。", rev: "勉強維持表面和平、害怕面對問題，但變革只是延後發生。" },
+      { name: "XVII 星星 (The Star)", el: "風", up: "充滿希望與療癒能量、靈感湧現、未來方向清晰光明，保持樂觀必有收穫。", rev: "暫時感到迷惘與信心不足，需要重新找回對自己的信任。" },
+      { name: "XVIII 月亮 (The Moon)", el: "水", up: "潛意識與直覺活躍，但外在資訊仍不明朗，宜保持警覺、先觀察再決定。", rev: "迷霧逐漸散去、看清隱藏的真相與擔憂，內心恢復踏實。" },
+      { name: "XIX 太陽 (The Sun)", el: "火", up: "極度光明與成功、充滿活力與自信、所有努力都能獲得公開肯定與喜悅。", rev: "過度樂觀忽略細節、光芒暫時被遮蔽，但本質依然正向。" },
+      { name: "XX 審判 (Judgement)", el: "火", up: "關鍵的覺醒時刻、過去累積的經驗開花結果、做出改變人生的重要決定。", rev: "自我批判過重、猶豫不決錯過召喚，或對過去的決定耿耿於懷。" },
+      { name: "XXI 世界 (The World)", el: "土", up: "圓滿達成目標、階段性任務完美收官、整合所有經驗邁向更高層次。", rev: "距離完成只差最後一步、仍有些許細節需要收尾才能真正圓滿。" }
+    ];
+
+    function runTarot() {
+      const count = parseInt(document.getElementById('tr-spread').value, 10);
+      const question = document.getElementById('tr-question').value.trim() || "當下最重要的指引與未來趨勢";
+
+      const posLabels = count === 1
+        ? ["核心指引牌（當下最關鍵的訊息）"]
+        : count === 3
+          ? ["第一張：過去成因（事情的源頭）", "第二張：現在處境（當下的核心狀態）", "第三張：未來趨勢（順著目前發展的結果）"]
+          : ["1. 目前現況", "2. 眼前的阻礙", "3. 最佳行動建議", "4. 最終發展趨勢"];
+
+      // 洗牌抽取不重複牌卡
+      const pool = [...TAROT_DECK];
+      const drawn = [];
+      for (let i = 0; i < count; i++) {
+        const idx = Math.floor(Math.random() * pool.length);
+        const card = pool.splice(idx, 1)[0];
+        const isReversed = Math.random() < 0.42;
+        drawn.push({
+          pos: posLabels[i],
+          ...card,
+          isReversed,
+          orientText: isReversed ? "逆位 (Reversed)" : "正位 (Upright)",
+          meaning: isReversed ? card.rev : card.up
+        });
+      }
+
+      document.getElementById('tr-cards').innerHTML = drawn.map(c => `
+        <div class="tarot-card-box">
+          <div class="tarot-pos">${c.pos}</div>
+          <div class="tarot-name">${c.name}</div>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <span class="tarot-orient ${c.isReversed ? 'orient-rev' : 'orient-up'}">${c.orientText}</span>
+            <span style="font-size:0.75rem; color:#94a3b8;">元素：${c.el}</span>
+          </div>
+          <p style="font-size:0.84rem; color:#e2e8f0; margin-top:6px; line-height:1.55;">${c.meaning}</p>
+        </div>
+      `).join('');
+
+      const storySummary = drawn.map(c => `【${c.pos.split('（')[0]}】抽到「${c.name}（${c.isReversed ? '逆位' : '正位'}）」，代表${c.meaning}`).join('；');
+
+      const guideHtml = `
+        <div class="plain-guide-section">
+          <div class="plain-guide-header">📖 塔羅牌陣串聯解析與白話導讀</div>
+          <div class="guide-grid">
+            <div class="guide-card">
+              <h4>🃏 牌面故事線拆解</h4>
+              <p>${storySummary}。</p>
+            </div>
+            <div class="guide-card">
+              <h4>🔥 牌陣元素能量觀察</h4>
+              <p>本次抽出的牌組包含<strong>「${drawn.map(c => c.el).join('、')}」</strong>元素（火主行動熱情、水主情感直覺、風主思考溝通、土主務實金錢）。${drawn.some(c => c.isReversed) ? '牌陣中出現逆位牌，提醒你內在還有需要調整節奏或釐清盲點的地方，不宜盲目衝刺。' : '全數為正位牌，代表能量流動順暢，事情正朝著清晰的方向推進。'}</p>
+            </div>
+          </div>
+          <div class="vernacular-callout">
+            <strong>💡 白話白紙總結（給你的直白行動建議）：</strong><br>
+            針對你問的「<strong>${question}</strong>」，牌陣最終指向「<strong>${drawn[drawn.length - 1].name}（${drawn[drawn.length - 1].isReversed ? '逆位' : '正位'}）</strong>」。白話來說，這件事的成敗關鍵在於：<strong>${drawn[drawn.length - 1].meaning}</strong> 請先專注把手邊能掌控的細節做好，順應牌面的提醒調整步調，結果就會往對你最有利的方向展開。
+          </div>
+        </div>
+      `;
+      document.getElementById('tr-guide').innerHTML = guideHtml;
+
+      latestResults.tarot = `【塔羅牌占卜排陣與問事紀錄】
+・占卜問題：${question}
+・使用牌陣：${count}張牌陣
+・抽牌結果：
+${drawn.map(c => `  - ${c.pos}：${c.name}【${c.orientText}｜${c.el}元素】 -> 基礎牌義：${c.meaning}`).join('\n')}
+
+請以專業塔羅占卜師角度，結合牌陣位置之間的因果流動與元素互動，針對我的問題「${question}」進行白話、有溫度且直指核心的深度解牌與具體行動建議。`;
+    }
+
+    /* =========================================================
+       7. 佛學問道引擎與白話全解
+    ========================================================= */
+    const BUDDHISM_DB = {
+      "禪宗頓悟（《六祖壇經》・破除執著內耗）": {
+        sutra: "《六祖壇經・般若品》",
+        quote: "「菩提本無樹，明鏡亦非台；本來無一物，何處惹塵埃。」又云：「前念著境即煩惱，後念離境即菩提。」",
+        plainExplain: "我們之所以痛苦內耗，往往不是因為外界發生的事情本身，而是大腦不斷在「反覆回味過去的遺憾」或「預支未來的恐懼」。六祖慧能告訴我們：心本來清淨無染，只要在念頭升起的當下覺察到「我又在抓著這件事不放了」，一轉念放下執著，煩惱當下就轉化為智慧。",
+        practice: [
+          "【三秒覺察法】：每次感到焦慮或生氣時，在心裡默念：「這只是我的念頭，不是事實本身。」",
+          "【不續前念】：事情處理完就畫下句點，不在睡前或休息時反覆重演白天的對話。",
+          "【專注當下一事】：喝茶時只管喝茶、走路時只管感受腳底踏地，把散亂的心收回到眼前。"
+        ]
+      },
+      "般若空性（《金剛經》《心經》・看淡得失無常）": {
+        sutra: "《金剛般若波羅蜜經》＆《般若波羅蜜多心經》",
+        quote: "「一切有為法，如夢幻泡影，如露亦如電，應作如是觀。」《心經》云：「心無罣礙，無罣礙故，無有恐怖，遠離顛倒夢想。」",
+        plainExplain: "佛法講的「空」，不是什麼都沒有，而是「一切事物都是因緣條件暫時聚合而成的，隨時在流動變化」。因為看懂了所有順境與逆境都是暫時的，就不會在順境時得意忘形，也不會在逆境時絕望崩潰。當心裡不再死死抓住「事情非得照我的劇本走」時，恐懼與焦慮自然就會消失。",
+        practice: [
+          "【盡人事、聽因緣】：全力把能做的準備做好，但把「結果必須如我所願」的執念放下。",
+          "【無常觀照練習】：遇到挫折時告訴自己：「這件事三年後回頭看，只是人生長河裡的一朵浪花。」",
+          "【每日靜坐五分鐘】：閉眼觀察呼吸進出，體會念頭來來去去而不跟隨。"
+        ]
+      },
+      "唯識轉念（《八識規矩頌》・轉化焦慮情緒）": {
+        sutra: "《唯識三十頌》＆《八識規矩頌》",
+        quote: "「三界唯心，萬法唯識。」又云：「轉識成智，如鏡現像，不迎不拒。」",
+        plainExplain: "唯識學揭示了一個極為現代心理學的真相：我們看到的痛苦世界，其實是內心過去經驗（阿賴耶識種子）投射出來的濾鏡。同樣一場雨，農夫覺得歡喜、旅人覺得掃興。改變外在環境很難，但只要調整我們看待事情的認知濾鏡（轉識成智），整個世界就會跟著改變。",
+        practice: [
+          "【重寫內在標籤】：把「我遇到了大麻煩」改寫成「這是一個訓練我解決問題能力的考題」。",
+          "【種下善意種子】：每天刻意做一件利他小事或說一句鼓勵的話，為內心累積正向能量。",
+          "【情緒抽離觀察】：把焦慮當成一位來拜訪的客人，客氣地看著它，而不是變成它。"
+        ]
+      },
+      "南傳正念（《法句經》・當下覺察與自律）": {
+        sutra: "《法句經・雙品／心品》",
+        quote: "「諸法意先導，意主意造作。若以清淨意，或語或行業，是則樂隨彼，如影不離形。」",
+        plainExplain: "《法句經》開宗明義指出：我們所有的言語與行為，都是由「心念」主導的。如果帶著平靜、清淨與善意去面對眼前的責任，快樂與安心就會像影子一樣緊緊跟隨著你。不需要去遠方尋找平靜，把眼前每一個當下的呼吸與動作做到位，就是最踏實的修行。",
+        practice: [
+          "【正念呼吸十口氣】：感到慌亂時，暫停手邊工作，完整感受十次深長呼吸的冷暖進出。",
+          "【守護身口意】：說話前停頓兩秒，確認這句話是「真實、有益且溫和」的再說出口。",
+          "【睡前感恩三件事】：每天睡前寫下三件今天值得感謝的小事，培養知足與安定的心。"
+        ]
+      }
+    };
+
+    function runBuddhism() {
+      const school = document.getElementById('bd-school').value;
+      const question = document.getElementById('bd-question').value.trim() || "如何面對生活中的焦慮與無常，找回內心平靜？";
+      const data = BUDDHISM_DB[school];
+
+      document.getElementById('bd-result').innerHTML = `
+        <div style="background:linear-gradient(135deg, #272014, #1e293b); border:1px solid #d97706; border-radius:10px; padding:16px; margin-bottom:14px;">
+          <div style="font-size:0.82rem; color:#fcd34d; font-weight:700;">📜 原典出處：${data.sutra}</div>
+          <p style="font-size:1.02rem; font-weight:700; color:#fef3c7; margin:8px 0; line-height:1.6;">${data.quote}</p>
+        </div>
+
+        <div class="plain-guide-section">
+          <div class="plain-guide-header">📖 經典白話轉譯與日常修心行動指南</div>
+          <div class="guide-grid">
+            <div class="guide-card">
+              <h4>💡 經文白話到底在說什麼？</h4>
+              <p>${data.plainExplain}</p>
+            </div>
+            <div class="guide-card">
+              <h4>🧘 今天就能開始的三個修心練習</h4>
+              <ul>
+                ${data.practice.map(item => `<li>${item}</li>`).join('')}
+              </ul>
+            </div>
+          </div>
+          <div class="vernacular-callout">
+            <strong>💡 針對你煩惱的慈悲開示總結：</strong><br>
+            關於你提到的「<strong>${question}</strong>」，請記得：焦慮往往來自於想同時控制「現在」與「還沒發生的未來」。試著把注意力縮回「今天只要把眼前這一步走好」，其餘的交給時間與因緣自然展開，你的心就會立刻鬆開一大半。
+          </div>
+        </div>
+      `;
+
+      latestResults.buddhism = `【佛學經典問道與白話修心紀錄】
+・請益宗風：${school}
+・引用原典：${data.sutra} -> ${data.quote}
+・白話心法摘要：${data.plainExplain}
+・我的煩惱與課題：${question}
+
+請以深諳佛學原典且具心理輔導溫度的善知識角度，針對我的具體煩惱「${question}」，結合上述經典義理，給我更貼近現代生活處境的白話開導與具體轉念練習。`;
+    }
+
+    // 頁面載入時自動初始化所有分頁預設結果，確保切換即看、隨時可複製
+    window.addEventListener('DOMContentLoaded', () => {
+      runZiwei();
+      runQimen();
+      runBazi();
+      runYinyuan();
+      runFengshui();
+      runTarot();
+      runBuddhism();
+    });
+  </script>
+</body>
+</html>
