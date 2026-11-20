@@ -1,0 +1,2863 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>玄學命理工作台 | 賽博術數工程化排盤引擎</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-obsidian: #06080f;
+      --bg-card: #0d1323;
+      --bg-elevated: #131c33;
+      --border-slate: #1e293b;
+      --cyber-cyan: #38bdf8;
+      --cyber-purple: #a855f7;
+      --cyber-magenta: #ec4899;
+      --cyber-amber: #f59e0b;
+      --text-primary: #f1f5f9;
+      --text-muted: #94a3b8;
+    }
+
+    body {
+      background-color: var(--bg-obsidian);
+      background-image:
+        linear-gradient(rgba(56, 189, 248, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(168, 85, 247, 0.03) 1px, transparent 1px),
+        radial-gradient(circle at 12% 0%, rgba(56, 189, 248, 0.09) 0%, transparent 42%),
+        radial-gradient(circle at 88% 8%, rgba(168, 85, 247, 0.1) 0%, transparent 45%);
+      background-size: 36px 36px, 36px 36px, 100% 100%, 100% 100%;
+      color: var(--text-primary);
+      font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+      overflow-x: hidden;
+    }
+
+    .font-serif-tc {
+      font-family: 'Noto Serif TC', serif;
+    }
+
+    .font-mono-code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* 嚴格鎖定 4x4 紫微命盤網格，放大單格比例與閱讀清晰度 */
+    .ziwei-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-rows: repeat(4, minmax(156px, auto));
+      gap: 6px;
+      width: 100%;
+    }
+
+    @media (min-width: 640px) {
+      .ziwei-grid {
+        grid-template-rows: repeat(4, minmax(196px, auto));
+        gap: 8px;
+      }
+    }
+
+    .palace-cell {
+      background-color: #0b101d;
+      border: 1px solid #1e293b;
+      border-radius: 10px;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+      min-width: 0;
+      word-break: break-word;
+    }
+
+    @media (min-width: 640px) {
+      .palace-cell {
+        padding: 10px 12px;
+      }
+    }
+
+    .palace-cell:hover {
+      border-color: rgba(56, 189, 248, 0.65);
+    }
+
+    /* 本宮選中狀態（琥珀流光金實框） */
+    .palace-selected {
+      border: 1.5px solid #f59e0b !important;
+      background: linear-gradient(145deg, rgba(245, 158, 11, 0.16), #0b101d) !important;
+      box-shadow: 0 0 16px rgba(245, 158, 11, 0.26);
+    }
+
+    /* 三方四正（對宮、三合宮）高亮狀態（電光藍青虛線） */
+    .palace-related {
+      border: 1px dashed rgba(56, 189, 248, 0.85) !important;
+      background: linear-gradient(145deg, rgba(56, 189, 248, 0.09), #0b101d) !important;
+    }
+
+    /* 中宮 2x2 摘要區塊 */
+    .center-hub {
+      grid-column: 2 / span 2;
+      grid-row: 2 / span 2;
+      background: radial-gradient(circle at center, #141d33 0%, #090d18 100%);
+      border: 1px solid rgba(168, 85, 247, 0.42);
+      box-shadow: inset 0 0 24px rgba(56, 189, 248, 0.08);
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      min-width: 0;
+    }
+
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* 生年四化標籤（低綠化：電光青/琥珀金/霓虹紫/洋紅） */
+    .sihua-badge {
+      display: inline-block;
+      font-size: 11px;
+      line-height: 1.1;
+      padding: 2px 4px;
+      border-radius: 4px;
+      margin-left: 2px;
+      font-weight: 700;
+    }
+    .sihua-lu { background: rgba(14, 116, 144, 0.55); color: #67e8f9; border: 1px solid rgba(103, 232, 249, 0.55); }
+    .sihua-quan { background: rgba(180, 83, 9, 0.55); color: #fcd34d; border: 1px solid rgba(252, 211, 77, 0.55); }
+    .sihua-ke { background: rgba(107, 33, 168, 0.55); color: #d8b4fe; border: 1px solid rgba(216, 180, 254, 0.55); }
+    .sihua-ji { background: rgba(159, 18, 57, 0.6); color: #fda4af; border: 1px solid rgba(253, 164, 175, 0.55); }
+
+    /* 九宮格（奇門遁甲與陽宅八宅共用） */
+    .nine-palace-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    /* 塔羅牌互動效果 */
+    .tarot-card-box {
+      transition: transform 0.3s ease, box-shadow 0.25s ease;
+    }
+    .tarot-card-box:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 22px rgba(56, 189, 248, 0.16);
+    }
+    .tarot-reversed {
+      transform: rotate(180deg);
+    }
+  </style>
+</head>
+<body class="min-h-screen pb-14">
+
+  <!-- 頂部賽博術數工程化導覽列 -->
+  <header class="border-b border-[#1e293b] bg-[#06080f]/95 sticky top-0 z-30 backdrop-blur">
+    <div class="max-w-5xl mx-auto px-3 sm:px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-[#38bdf8]/25 via-[#a855f7]/25 to-[#f59e0b]/20 border border-[#38bdf8]/50 flex items-center justify-center text-[#38bdf8] font-serif-tc font-bold text-lg shadow-[0_0_15px_rgba(56,189,248,0.2)]">
+          玄
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-serif-tc text-base sm:text-lg font-bold tracking-wider text-[#f1f5f9]">
+              玄學命理工作台
+            </h1>
+            <span class="hidden sm:inline-block font-mono-code text-[10px] px-2 py-0.5 rounded bg-[#a855f7]/15 text-[#d8b4fe] border border-[#a855f7]/40">
+              CYBER-ASTRO ENGINE v3.2
+            </span>
+          </div>
+          <p class="text-[11px] text-[#94a3b8]">賽博新東方術數排盤矩陣 · 1900–2050 曆法實算 · 八大門類全離線</p>
+        </div>
+      </div>
+
+      <button onclick="downloadOfflineHTML()" class="px-3 py-1.5 rounded-lg bg-[#131c33] hover:bg-[#1e293b] border border-[#f59e0b]/55 text-[#fbbf24] text-xs font-medium flex items-center gap-1.5 transition cursor-pointer">
+        <span>💾</span>
+        <span>下載離線網頁 (.html)</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto px-3 sm:px-4 pt-4 space-y-4">
+
+    <!-- 全域生辰與術數流派口徑控制面板 -->
+    <section class="bg-[#0d1323] border border-[#1e293b] rounded-xl p-3.5 sm:p-4 shadow-xl space-y-3">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[#1e293b] pb-2">
+        <span class="text-xs font-bold text-[#38bdf8] tracking-wide flex items-center gap-1.5">
+          <span>⚙️</span> 生辰基準與排盤口徑設定
+        </span>
+        <span class="font-mono-code text-[10px] text-[#a855f7]">SOLAR ➔ LUNAR_INFO + 24 SOLAR TERMS</span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+        <div class="sm:col-span-3">
+          <label for="birthDate" class="block text-xs text-[#94a3b8] mb-1">國曆（陽曆）出生日期</label>
+          <input type="date" id="birthDate" value="1999-11-09" min="1900-01-31" max="2050-12-31"
+            class="w-full bg-[#06080f] border border-[#1e293b] focus:border-[#38bdf8] rounded-lg px-2.5 py-2 text-xs sm:text-sm text-[#f1f5f9] outline-none" />
+        </div>
+
+        <div class="sm:col-span-4">
+          <label for="birthHour" class="block text-xs text-[#94a3b8] mb-1">出生時辰（區分早子 / 晚子時）</label>
+          <select id="birthHour"
+            class="w-full bg-[#06080f] border border-[#1e293b] focus:border-[#38bdf8] rounded-lg px-2.5 py-2 text-xs sm:text-sm text-[#f1f5f9] outline-none">
+            <option value="0">早子時 (00:00 - 00:59)</option>
+            <option value="1">丑時 (01:00 - 02:59)</option>
+            <option value="2">寅時 (03:00 - 04:59)</option>
+            <option value="3">卯時 (05:00 - 06:59)</option>
+            <option value="4">辰時 (07:00 - 08:59)</option>
+            <option value="5">巳時 (09:00 - 10:59)</option>
+            <option value="6" selected>午時 (11:00 - 12:59)</option>
+            <option value="7">未時 (13:00 - 14:59)</option>
+            <option value="8">申時 (15:00 - 16:59)</option>
+            <option value="9">酉時 (17:00 - 18:59)</option>
+            <option value="10">戌時 (19:00 - 20:59)</option>
+            <option value="11">亥時 (21:00 - 22:59)</option>
+            <option value="12">晚子時 (23:00 - 23:59)</option>
+          </select>
+        </div>
+
+        <div class="sm:col-span-2">
+          <label for="gender" class="block text-xs text-[#94a3b8] mb-1">陰陽男女</label>
+          <select id="gender"
+            class="w-full bg-[#06080f] border border-[#1e293b] focus:border-[#38bdf8] rounded-lg px-2.5 py-2 text-xs sm:text-sm text-[#f1f5f9] outline-none">
+            <option value="M" selected>男命（乾造）</option>
+            <option value="F">女命（坤造）</option>
+          </select>
+        </div>
+
+        <div class="sm:col-span-3">
+          <button onclick="runAllCalculations()"
+            class="w-full bg-gradient-to-r from-[#38bdf8] via-[#818cf8] to-[#a855f7] hover:brightness-110 text-[#06080f] font-bold py-2 px-3 rounded-lg text-xs sm:text-sm shadow-[0_0_16px_rgba(56,189,248,0.28)] transition cursor-pointer">
+            執行全盤確定性推演
+          </button>
+        </div>
+      </div>
+
+      <!-- 進階口徑設定列 -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+        <div>
+          <label for="leapMonthMode" class="block text-[11px] text-[#94a3b8] mb-1">紫微閏月分界口徑（遇閏月生人適用）</label>
+          <select id="leapMonthMode" onchange="runAllCalculations()"
+            class="w-full bg-[#06080f] border border-[#1e293b] focus:border-[#a855f7] rounded-lg px-2.5 py-1.5 text-xs text-[#f1f5f9] outline-none">
+            <option value="mid" selected>月中分界（初一至十五歸本月，十六日起算下月）</option>
+            <option value="current">全月歸本月（閏月整月皆依本月起算）</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="baziZiDayMode" class="block text-[11px] text-[#94a3b8] mb-1">八字晚子時（23:00–23:59）換日柱口徑</label>
+          <select id="baziZiDayMode" onchange="runAllCalculations()"
+            class="w-full bg-[#06080f] border border-[#1e293b] focus:border-[#a855f7] rounded-lg px-2.5 py-1.5 text-xs text-[#f1f5f9] outline-none">
+            <option value="23" selected>23:00 換日柱（晚子時日柱算隔日，傳統子初換日）</option>
+            <option value="00">00:00 換日柱（晚子時日柱仍算當日，次日子時推演）</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 即時陽曆轉真實農曆校對徽章 -->
+      <div id="lunarVerifyBanner" class="pt-2.5 border-t border-[#1e293b] flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="px-2 py-0.5 rounded bg-[#38bdf8]/15 text-[#38bdf8] border border-[#38bdf8]/35 font-medium">真實農曆校對</span>
+          <span id="lunarDisplayText" class="text-[#f1f5f9] font-medium">計算中...</span>
+        </div>
+        <div id="jieqiDisplayText" class="text-[#a855f7] font-mono-code text-[11px]"></div>
+      </div>
+    </section>
+
+    <!-- 八大分頁導覽列（新增「八字流年」在「四柱八字」旁） -->
+    <nav class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1" id="tabNav">
+      <button data-tab="ziwei" onclick="switchTab('ziwei')" class="tab-btn active-tab shrink-0 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium border border-[#38bdf8] bg-[#38bdf8]/15 text-[#38bdf8] transition cursor-pointer">
+        紫微斗數
+      </button>
+      <button data-tab="qimen" onclick="switchTab('qimen')" class="tab-btn shrink-0 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium border border-[#1e293b] bg-[#0d1323] text-[#94a3b8] hover:text-[#f1f5f9] hover:border-slate-600 transition cursor-pointer">
+        奇門遁甲
+      </button>
+      <button data-tab="bazi" onclick="switchTab('bazi')" class="tab-btn shrink-0 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium border border-[#1e293b] bg-[#0d1323] text-[#94a3b8] hover:text-[#f1f5f9] hover:border-slate-600 transition cursor-pointer">
+        四柱八字
+      </button>
+      <button data-tab="baziliu" onclick="switchTab('baziliu')" class="tab-btn shrink-0 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium border border-[#1e293b] bg-[#0d1323] text-[#94a3b8] hover:text-[#f1f5f9] hover:border-slate-600 transition cursor-pointer">
+        八字流年
+      </button>
+      <button data-tab="yuelao" onclick="switchTab('yuelao')" class="tab-btn shrink-0 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium border border-[#1e293b] bg-[#0d1323] text-[#94a3b8] hover:text-[#f1f5f9] hover:border-slate-600 transition cursor-pointer">
+        月老姻緣
+      </button>
+      <button data-tab="fengshui" onclick="switchTab('fengshui')" class="tab-btn shrink-0 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium border border-[#1e293b] bg-[#0d1323] text-[#94a3b8] hover:text-[#f1f5f9] hover:border-slate-600 transition cursor-pointer">
+        陽宅風水
+      </button>
+      <button data-tab="tarot" onclick="switchTab('tarot')" class="tab-btn shrink-0 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium border border-[#1e293b] bg-[#0d1323] text-[#94a3b8] hover:text-[#f1f5f9] hover:border-slate-600 transition cursor-pointer">
+        塔羅占卜 (78張)
+      </button>
+      <button data-tab="buddhism" onclick="switchTab('buddhism')" class="tab-btn shrink-0 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium border border-[#1e293b] bg-[#0d1323] text-[#94a3b8] hover:text-[#f1f5f9] hover:border-slate-600 transition cursor-pointer">
+        佛學問道 (大正藏)
+      </button>
+    </nav>
+
+    <!-- ================= 分頁 1：紫微斗數 ================= -->
+    <section id="panel-ziwei" class="tab-panel space-y-4">
+      <div class="bg-[#0d1323] border border-[#1e293b] rounded-xl p-3 sm:p-4 space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 class="font-serif-tc text-base sm:text-lg font-bold text-[#fbbf24]">紫微斗數十二宮確定性工程命盤</h2>
+            <p class="text-xs text-[#94a3b8]">含十四主星廟旺平陷亮度、六吉六煞輔星、大限歲數區間；點擊宮位高亮「三方四正」</p>
+          </div>
+          <div class="flex items-center gap-3 text-[11px]">
+            <span class="inline-flex items-center gap-1 text-[#fbbf24]"><i class="w-2.5 h-2.5 rounded-sm border border-[#f59e0b] bg-[#f59e0b]/25 inline-block"></i>本宮</span>
+            <span class="inline-flex items-center gap-1 text-[#38bdf8]"><i class="w-2.5 h-2.5 rounded-sm border border-dashed border-[#38bdf8] bg-[#38bdf8]/15 inline-block"></i>三方四正</span>
+          </div>
+        </div>
+
+        <!-- 嚴格鎖定 4x4 網格（大字體高可讀性） -->
+        <div id="ziweiBoard" class="ziwei-grid"></div>
+      </div>
+
+      <!-- 紫微斗數確定性排盤參考數據總表（結構化高密度面板，方便查閱與對照） -->
+      <div class="bg-[#0d1323] border border-[#1e293b] rounded-xl p-4 space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[#1e293b] pb-2">
+          <h3 class="font-serif-tc text-sm sm:text-base font-bold text-[#38bdf8] flex items-center gap-2">
+            <span>📊</span> 紫微斗數確定性排盤參考數據總表（三方四正・大限・四化飛星矩陣）
+          </h3>
+          <span class="font-mono-code text-[10px] text-[#a855f7]">DETERMINISTIC MATRIX DATA</span>
+        </div>
+
+        <div id="ziweiDeterministicMatrix" class="space-y-3"></div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-[#0d1323] border border-[#1e293b] rounded-xl p-4 space-y-2.5">
+          <h3 class="font-serif-tc text-sm sm:text-base font-bold text-[#38bdf8] flex items-center gap-2">
+            <span>📜</span> 專業結構解析（安星口徑、廟旺亮度與四化架構）
+          </h3>
+          <div id="ziweiProAnalysis" class="text-xs sm:text-sm text-slate-300 leading-relaxed space-y-2"></div>
+        </div>
+
+        <div class="bg-[#0d1323] border border-[#1e293b] rounded-xl p-4 space-y-2.5">
+          <h3 class="font-serif-tc text-sm sm:text-base font-bold text-[#fbbf24] flex items-center gap-2">
+            <span>💡</span> 白話白紙導讀（零基礎看懂命盤與大限節奏）
+          </h3>
+          <div id="ziweiPlainAnalysis" class="text-xs sm:text-sm text-slate-300 leading-relaxed space-y-2"></div>
+        </div>
+      </div>
+
+      <div class="pt-1">
+        <button onclick="copyModulePrompt('ziwei')"
+          class="w-full py-3 px-4 rounded-xl bg-[#131c33] hover:bg-[#1e293b] border border-[#38bdf8]/55 text-[#38bdf8] font-medium text-xs sm:text-sm flex items-center justify-center gap-2 shadow transition cursor-pointer">
+          <span>📋 複製完整確定性紫微排盤參數（可直接貼給 AI 深度詢問）</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ================= 分頁 2：奇門遁甲 ================= -->
+    <section id="panel-qimen" class="tab-panel hidden space-y-4">
+      <div class="bg-[#0d1323] border border-[#1e293b] rounded-xl p-4 space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <h2 class="font-serif-tc text-base sm:text-lg font-bold text-[#fbbf24]">時家轉盤奇門遁甲排盤</h2>
+              <span class="font-mono-code text-[10px] px-2 py-0.5 rounded bg-[#a855f7]/15 text-[#d8b4fe] border border-[#a855f7]/35">
+                拆補法 · 中五寄坤二宮
+              </span>
+            </div>
+            <p id="qimenMetaInfo" class="text-xs text-[#94a3b8] mt-0.5">依起局時刻自動定陰陽遁、節氣三元與值符值使</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 bg-[#06080f] border border-[#1e293b] rounded-xl p-3 items-end">
+          <div class="sm:col-span-4">
+            <label for="queryTime" class="block text-[11px] text-[#94a3b8] mb-1">起局問事時刻</label>
+            <div class="flex gap-1.5">
+              <input type="datetime-local" id="queryTime" onchange="runAllCalculations()"
+                class="w-full bg-[#0d1323] border border-[#1e293b] focus:border-[#38bdf8] rounded-lg px-2 py-1.5 text-xs text-[#f1f5f9] outline-none" />
+              <button onclick="setNowForQimen()" class="shrink-0 px-2.5 py-1.5 rounded-lg bg-[#131c33] hover:bg-[#1e293b] border border-[#38bdf8]/45 text-[#38bdf8] text-xs cursor-pointer" title="重設為現在時間">
+                ⏱ 當下
+              </button>
+            </div>
+          </div>
+
+          <div class="sm:col-span-8">
+            <label for="qimenQuestionInput" class="block text-[11px] text-[#38bdf8] mb-1">
+              無問不占 · 單事單占所問事項（建議具體寫明單一事件與時間範圍）
+            </label>
+            <input type="text" id="qimenQuestionInput" placeholder="例如：本週五與新客戶簽約合作是否順利？ / 近期轉職到某公司發展如何？"
+              class="w-full bg-[#0d1323] border border-[#1e293b] focus:border-[#38bdf8] rounded-lg px-3 py-1.5 text-xs sm:text-sm text-[#f1f5f9] outline-none" />
+          </div>
+        </div>
+
+        <div id="qimenBoard" class="nine-palace-grid"></div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-[#0d1323] border border-[#1e293b] rounded-xl p-4 space-y-2.5">
+          <h3 class="font-serif-tc text-sm sm:text-base font-bold text-[#38bdf8] flex items-center gap-2">
+            <span>📜</span> 專業結構解析（值符值使與三奇八門）
+          </h3>
+          <div id="qimenProAnalysis" class="text-xs sm:text-sm text-slate-300 leading-relaxed space-y-2"></div>
+        </div>
+
+        <div class="bg-[#0d1323] border border-[#1e293b] rounded-xl p-4 space-y-2.5">
+          <h3 class="font-serif-tc text-sm sm:text-base font-bold text-[#fbbf24] flex items-center gap-2">
+            <span>💡</span> 白話白紙導讀（決策方位與行動時機）
+          </h3>
+          <div id="qimenPlainAnalysis" class="text-xs sm:text-sm text-slate-300 leading-relaxed space-y-2"></div>
+        </div>
+      </div>
+
+      <div class="pt-1">
+        <button onclick="copyModulePrompt('qimen')"
+          class="w-full py-3 px-4 rounded-xl bg-[#131c33] hover:bg-[#1e293b] border border-[#38bdf8]/55 text-[#38bdf8] font-medium text-xs sm:text-sm flex items-center justify-center gap-2 shadow transition cursor-pointer">
+          <span>📋 複製占卜內容（可直接貼給 AI 深度詢問）</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ================= 分頁 3：四柱八字 ================= -->
+    <section id="panel-bazi" class="tab-panel hidden space-y-4">
+      <div class="bg-[#0d1323] border border-[#1e293b] rounded-xl p-4 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 class="font-serif-tc text-base sm:text-lg font-bold text-[#fbbf24]">四柱八字命盤（節氣真太陽黃經校準）</h2>
+            <p class="text-xs text-[#94a3b8]">年柱依立春（315°）交接，月柱依十二節令交接，展開地支藏干、十神與八步大運</p>
+          </div>
+          <span id="baziDayMasterBadge" class="px-2.5 py-1 rounded-lg bg-[#38bdf8]/15 border border-[#38bdf8]/40 text-[#38bdf8] text-xs font-bold"></span>
+        </div>
+
+        <div id="baziPillarsGrid" class="grid grid-cols-4 gap-2 sm:gap-3"></div>
+
+        <div class="bg-[#06080f] border border-[#1e293b] rounded-xl p-3 space-y-2.5">
+          <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+            <span class="text-[#38bdf8] font-bold flex items-center gap-1.5">
+              <span>🧭</span> 大運起運與八步大運干支十神序列
+            </span>
+            <span id="dayunStartSummary" class="text-[#fbbf24] font-medium"></span>
+          </div>
+          <div id="dayunGrid" class="grid grid-cols-4 sm:grid-cols-8 gap-1.5 sm:gap-2"></div>
+        </div>
+
+        <div class="bg-[#06080f] border border-[#1e293b] rounded-xl p-3 space-y-2">
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-[#94a3b8] font-medium">本命五行原局分佈（天干＋地支本氣權重）</span>
+            <span id="wuxingSummaryText" class="text-[#fbbf24]"></span>
+          </div>
+          <div id="wuxingBars" class="grid grid-cols-5 gap-2 text-center text-xs"></div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-[#0d1323] border border-[#1e293b] rounded-xl p-4 space-y-2.5">
+          <h3 class="font-serif-tc text-sm sm:text-base font-bold text-[#38bdf8] flex items-center gap-2">
+            <span>📜</span> 專業結構解析（格局、月令與大運走勢）
+          </h3>
+          <div id="baziProAnalysis" class="text-xs sm:text-sm text-slate-300 leading-relaxed space-y-2"></div>
+        </div>
+
+        <div class="bg-[#0d1323] border border-[#1e293b] rounded-xl p-4 space-y-2.5">
+          <h3 class="font-serif-tc text-sm sm:text-base font-bold text-[#fbbf24] flex items-center gap-2">
+            <span>💡</span> 白話白紙導讀（日主性格與人生大運節奏）
+          </h3>
+          <div id="baziPlainAnalysis" class="text-xs sm:text-sm text-slate-300 leading-relaxed space-y-2"></div>
+        </div>
+      </div>
+
+      <div class="pt-1">
+        <button onclick="copyModulePrompt('bazi')"
+          class="w-full py-3 px-4 rounded-xl bg-[#131c33] hover:bg-[#1e293b] border border-[#38bdf8]/55 text-[#38bdf8] font-medium text-xs sm:text-sm flex items-center justify-center gap-2 shadow transition cursor-pointer">
+          <span>📋 複製占卜內容（可直接貼給 AI 深度詢問）</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ================= 分頁 4：八字流年（新增於四柱八字旁） ================= -->
+    <section id="panel-baziliu" class="tab-panel hidden space-y-4">
+      <div class="bg-[#0d1323] border border-[#1e293b] rounded-xl p-4 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[#1e293b] pb-3">
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <h2 class="font-serif-tc text-base sm:text-lg font-bold text-[#fbbf24]">八字流年運勢精算 · 歲運並臨與四維深析</h2>
+              <span class="font-mono-code text-[10px] px-2 py-0.5 rounded bg-[#ec4899]/15 text-[#f472b6] border border-[#ec4899]/40">
+                ANNUAL FORTUNE MATRIX
+              </span>
+            </div>
+            <p class="text-xs text-[#94a3b8] mt-0.5">整合本命原局、十年大運與流年太歲干支十神，精算刑沖合害、神煞與十二流月節奏</p>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <label for="liunianYearSelect" class="text-xs text-[#94a3b8]">推算流年：</label>
+            <select id="liunianYearSelect" onchange="renderBaZiLiuNian()"
+              class="bg-[#06080f] border border-[#38bdf8]/60 rounded-lg px-3 py-1.5 text-xs sm:text-sm font-bold text-[#38bdf8] outline-none cursor-pointer">
+            </select>
+          </div>
+        </div>
+
+        <!-- 三層疊加盤面：流年柱 + 當前大運柱 + 原局四柱 -->
+        <div id="liunianOverlayGrid" class="grid grid-cols-2 sm:grid-cols-6 gap-2 sm:gap-2.5"></div>
+
+        <!-- 流年神煞與地支刑沖合害掃描 -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="bg-[#06080f] border border-[#1e293b] rounded-xl p-3 space-y-1.5">
+            <div class="text-xs font-bold text-[#a855f7] flex items-center gap-1.5">
+              <span>⚡</span> 流年太歲與吉凶神煞感應
+            </div>
+            <div id="liunianShenshaBox" class="text-xs text-slate-300 leading-relaxed"></div>
+          </div>
+
+          <div class="bg-[#06080f] border border-[#1e293b] rounded-xl p-3 space-y-1.5">
+            <div class="text-xs font-bold text-[#38bdf8] flex items-center gap-1.5">
+              <span>🔄</span> 歲運與原局地支「刑・沖・合・害」檢測
+            </div>
+            <div id="liunianInteractionsBox" class="text-xs text-slate-300 leading-relaxed"></div>
+          </div>
+        </div>
+
+        <!-- 十二流月節氣運勢節奏條 -->
+        <div class="bg-[#06080f] border border-[#1e293b] rounded-xl p-3 space-y-2">
+          <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+            <span class="font-bold text-[#fbbf24]">📅 流年十二節氣月份干支與十神節奏（立春起正月）</span>
+            <span class="text-[11px] text-[#94a3b8]">可觀察各月天干十神對工作與財運的催化</span>
+          </div>
+          <div id="liunianMonthsGrid" class="grid grid-cols-3 sm:grid-cols-6 gap-1.5"></div>
+        </div>
+      </div>
+
+      <!-- 四大維度詳細說明：工作、財運、愛情、大運方向 -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between px-1">
+          <h3 class="font-serif-tc text-base sm:text-lg font-bold text-[#f1f5f9] flex items-center gap-2">
+            <span class="text-[#38bdf8]">◈</span> 流年四大核心維度深度剖析（工作・財運・愛情・大運方向）
+          </h3>
+          <span id="liunianThemeBadge" class="text-xs px-2.5 py-0.5 rounded-full bg-[#a855f7]/20 text-[#d8b4fe] border border-[#a855f7]/40 font-medium"></span>
+        </div>
+
+        <div id="liunianFourDimensions" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+      </div>
+
+      <div class="pt-1">
+        <button onclick="copyModulePrompt('baziliu')"
+          class="w-full py-3 px-4 rounded-xl bg-[#131c33] hover:bg-[#1e293b] border border-[#a855f7]/60 text-[#d8b4fe] font-medium text-xs sm:text-sm flex items-center justify-center gap-2 shadow transition cursor-pointer">
+          <span>📋 複製完整八字流年＋大運四維分析資料（可直接貼給 AI 深度詢問）</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ================= 分頁 5：月老姻緣 ================= -->
+    <section id="panel-yuelao" class="tab-panel hidden space-y-4">
+      <div class="bg-[#0d1323] border border-[#1e293b] rounded-xl p-4 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 class="font-serif-tc text-base sm:text-lg font-bold text-[#fbbf24]">月老姻緣合參與靈籤祈願</h2>
+            <p class="text-xs text-[#94a3b8]">結合本命紅鸞天喜、咸池桃花、紫微夫妻宮，並可誠心求取月老靈籤</p>
+          </div>
+          <button onclick="drawYueLaoStick()" class="px-4 py-2 rounded-lg bg-gradient-to-r from-[#ec4899] to-[#a855f7] hover:brightness-110 text-white font-bold text-xs sm:text-sm shadow transition cursor-pointer">
+            🎋 誠心求取月老靈籤
+          </button>
+        </div>
+
+        <div id="yuelaoStarsGrid" class="grid grid-cols-1 sm:grid-cols-3 gap-3"></div>
+
+        <div id="yuelaoStickBox" class="bg-[#06080f] border border-[#ec4899]/35 rounded-xl p-4 space-y-2">
+          <div class="flex items-center justify-between">
+            <span id="stickNumberBadge" class="px-2.5 py-0.5 rounded bg-[#ec4899]/20 text-[#f472b6] border border-[#ec4899]/45 text-xs font-bold">尚未求籤</span>
+            <span id="stickLevelBadge" class="text-xs text-[#fbbf24] font-serif-tc">點擊上方按鈕誠心祈願</span>
+          </div>
+          <p id="stickPoemText" class="font-serif-tc text-sm sm:text-base text-[#fde68a] tracking-wider pt-1">
+            默念姓名、生辰與所求感情之事，點擊「誠心求取月老靈籤」感應籤詩。
+          </p>
+          <p id="stickMeaningText" class="text-xs text-[#94a3b8] leading-relaxed"></p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-[#0d1323] border border-[#1e293b] rounded-xl p-4 space-y-2.5">
+          <h3 class="font-serif-tc text-sm sm:text-base font-bold text-[#38bdf8] flex items-center gap-2">
+            <span>📜</span> 專業結構解析（夫妻宮與桃花神煞）
+          </h3>
+          <div id="yuelaoProAnalysis" class="text-xs sm:text-sm text-slate-300 leading-relaxed space-y-2"></div>
+        </div>
+
+        <div class="bg-[#0d1323] border border-[#1e293b] rounded-xl p-4 space-y-2.5">
+          <h3 class="font-serif-tc text-sm sm:text-base font-bold text-[#fbbf24] flex items-center gap-2">
+            <span>💡</span> 白話白紙導讀（伴侶特質與感情建議）
+          </h3>
+          <div id="yuelaoPlainAnalysis" class="text-xs sm:text-sm text-slate-300 leading-relaxed space-y-2"></div>
+        </div>
+      </div>
+
+      <div class="pt-1">
+        <button onclick="copyModulePrompt('yuelao')"
+          class="w-full py-3 px-4 rounded-xl bg-[#131c33] hover:bg-[#1e293b] border border-[#38bdf8]/55 text-[#38bdf8] font-medium text-xs sm:text-sm flex items-center justify-center gap-2 shadow transition cursor-pointer">
+          <span>📋 複製占卜內容（可直接貼給 AI 深度詢問）</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ================= 分頁 6：陽宅風水 ================= -->
+    <section id="panel-fengshui" class="tab-panel hidden space-y-4">
+      <div class="bg-[#0d1323] border border-[#1e293b] rounded-xl p-4 space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 class="font-serif-tc text-base sm:text-lg font-bold text-[#fbbf24]">八宅明鏡陽宅風水（本命卦方位盤）</h2>
+            <p class="text-xs text-[#94a3b8]">嚴格區分 2000 年前後男女命卦公式（五黃男寄坤二、女寄艮八），推演八大吉凶方位</p>
+          </div>
+          <span id="fengshuiGroupBadge" class="px-3 py-1 rounded-lg bg-[#38bdf8]/15 border border-[#38bdf8]/40 text-[#38bdf8] text-xs font-bold"></span>
+        </div>
+
+        <div id="fengshuiBoard" class="nine-palace-grid"></div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-[#0d1323] border border-[#1e293b] rounded-xl p-4 space-y-2.5">
+          <h3 class="font-serif-tc text-sm sm:text-base font-bold text-[#38bdf8] flex items-center gap-2">
+            <span>📜</span> 專業結構解析（東西四命與八遊年星）
+          </h3>
+          <div id="fengshuiProAnalysis" class="text-xs sm:text-sm text-slate-300 leading-relaxed space-y-2"></div>
+        </div>
+
+        <div class="bg-[#0d1323] border border-[#1e293b] rounded-xl p-4 space-y-2.5">
+          <h3 class="font-serif-tc text-sm sm:text-base font-bold text-[#fbbf24] flex items-center gap-2">
+            <span>💡</span> 白話白紙導讀（居家床位、書桌與財位佈局）
+          </h3>
+          <div id="fengshuiPlainAnalysis" class="text-xs sm:text-sm text-slate-300 leading-relaxed space-y-2"></div>
+        </div>
+      </div>
+
+      <div class="pt-1">
+        <button onclick="copyModulePrompt('fengshui')"
+          class="w-full py-3 px-4 rounded-xl bg-[#131c33] hover:bg-[#1e293b] border border-[#38bdf8]/55 text-[#38bdf8] font-medium text-xs sm:text-sm flex items-center justify-center gap-2 shadow transition cursor-pointer">
+          <span>📋 複製占卜內容（可直接貼給 AI 深度詢問）</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ================= 分頁 7：塔羅占卜 ================= -->
+    <section id="panel-tarot" class="tab-panel hidden space-y-4">
+      <div class="bg-[#0d1323] border border-[#1e293b] rounded-xl p-4 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 class="font-serif-tc text-base sm:text-lg font-bold text-[#fbbf24]">偉特塔羅占卜（完整 78 張正逆位牌庫）</h2>
+            <p class="text-xs text-[#94a3b8]">內建 22 張大阿爾克那＋56 張小阿爾克那（權杖、聖杯、寶劍、錢幣），支援洗牌抽牌</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <select id="tarotSpreadSelect" class="bg-[#06080f] border border-[#1e293b] rounded-lg px-2.5 py-1.5 text-xs text-[#f1f5f9] outline-none">
+              <option value="1">單張每日指引牌陣 (1張)</option>
+              <option value="3" selected>時間之流：過去·現在·未來 (3張)</option>
+              <option value="4">關係與抉擇深層四牌陣 (4張)</option>
+            </select>
+            <button onclick="drawTarotCards()" class="px-4 py-1.5 rounded-lg bg-gradient-to-r from-[#38bdf8] to-[#a855f7] text-[#06080f] font-bold text-xs sm:text-sm shadow cursor-pointer">
+              🔮 洗牌並抽牌
+            </button>
+          </div>
+        </div>
+
+        <div class="w-full">
+          <input type="text" id="tarotQuestionInput" placeholder="在此輸入你想占卜的問題（例如：近期事業轉職方向、這段關係的發展...）"
+            class="w-full bg-[#06080f] border border-[#1e293b] focus:border-[#38bdf8] rounded-lg px-3 py-2 text-xs sm:text-sm text-[#f1f5f9] outline-none" />
+        </div>
+
+        <div id="tarotCardsDisplay" class="grid grid-cols-1 sm:grid-cols-3 gap-3"></div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-[#0d1323] border border-[#1e293b] rounded-xl p-4 space-y-2.5">
+          <h3 class="font-serif-tc text-sm sm:text-base font-bold text-[#38bdf8] flex items-center gap-2">
+            <span>📜</span> 專業結構解析（牌陣元素與大/小阿爾克那結構）
+          </h3>
+          <div id="tarotProAnalysis" class="text-xs sm:text-sm text-slate-300 leading-relaxed space-y-2"></div>
+        </div>
+
+        <div class="bg-[#0d1323] border border-[#1e293b] rounded-xl p-4 space-y-2.5">
+          <h3 class="font-serif-tc text-sm sm:text-base font-bold text-[#fbbf24] flex items-center gap-2">
+            <span>💡</span> 白話白紙導讀（牌面訊息與行動建議）
+          </h3>
+          <div id="tarotPlainAnalysis" class="text-xs sm:text-sm text-slate-300 leading-relaxed space-y-2"></div>
+        </div>
+      </div>
+
+      <div class="pt-1">
+        <button onclick="copyModulePrompt('tarot')"
+          class="w-full py-3 px-4 rounded-xl bg-[#131c33] hover:bg-[#1e293b] border border-[#38bdf8]/55 text-[#38bdf8] font-medium text-xs sm:text-sm flex items-center justify-center gap-2 shadow transition cursor-pointer">
+          <span>📋 複製占卜內容（可直接貼給 AI 深度詢問）</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ================= 分頁 8：佛學問道 ================= -->
+    <section id="panel-buddhism" class="tab-panel hidden space-y-4">
+      <div class="bg-[#0d1323] border border-[#1e293b] rounded-xl p-4 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 class="font-serif-tc text-base sm:text-lg font-bold text-[#fbbf24]">佛學問道 · 《大正新脩大藏經》原典相應</h2>
+            <p class="text-xs text-[#94a3b8]">依當下心境或輸入心中困惑，契入《金剛經》《心經》《法華經》《維摩詰經》《華嚴經》原典法語</p>
+          </div>
+          <button onclick="drawBuddhistScripture()" class="px-4 py-1.5 rounded-lg bg-gradient-to-r from-[#38bdf8] to-[#a855f7] text-[#06080f] font-bold text-xs sm:text-sm shadow cursor-pointer">
+            🪷 恭請經典法語相應
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+          <div class="sm:col-span-4">
+            <select id="buddhismTopicSelect" onchange="drawBuddhistScripture()" class="w-full bg-[#06080f] border border-[#1e293b] rounded-lg px-3 py-2 text-xs sm:text-sm text-[#f1f5f9] outline-none">
+              <option value="all">隨緣相應（全藏隨機契機）</option>
+              <option value="attachment">破除執著與煩惱（般若空性）</option>
+              <option value="karma">因果順逆與無常（緣起法門）</option>
+              <option value="compassion">人際關係與慈悲（菩薩行願）</option>
+              <option value="mind">定心安神與覺察（禪定止觀）</option>
+            </select>
+          </div>
+          <div class="sm:col-span-8">
+            <input type="text" id="buddhismQuestionInput" placeholder="可選填心中所惑（例如：面對變動感到焦慮，如何安住其心？）"
+              class="w-full bg-[#06080f] border border-[#1e293b] focus:border-[#38bdf8] rounded-lg px-3 py-2 text-xs sm:text-sm text-[#f1f5f9] outline-none" />
+          </div>
+        </div>
+
+        <div id="scriptureDisplayCard" class="bg-[#06080f] border border-[#f59e0b]/45 rounded-xl p-4 sm:p-5 space-y-3"></div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-[#0d1323] border border-[#1e293b] rounded-xl p-4 space-y-2.5">
+          <h3 class="font-serif-tc text-sm sm:text-base font-bold text-[#38bdf8] flex items-center gap-2">
+            <span>📜</span> 專業結構解析（大正藏出處與義理宗趣）
+          </h3>
+          <div id="buddhismProAnalysis" class="text-xs sm:text-sm text-slate-300 leading-relaxed space-y-2"></div>
+        </div>
+
+        <div class="bg-[#0d1323] border border-[#1e293b] rounded-xl p-4 space-y-2.5">
+          <h3 class="font-serif-tc text-sm sm:text-base font-bold text-[#fbbf24] flex items-center gap-2">
+            <span>💡</span> 白話白紙導讀（生活轉念與觀照練習）
+          </h3>
+          <div id="buddhismPlainAnalysis" class="text-xs sm:text-sm text-slate-300 leading-relaxed space-y-2"></div>
+        </div>
+      </div>
+
+      <div class="pt-1">
+        <button onclick="copyModulePrompt('buddhism')"
+          class="w-full py-3 px-4 rounded-xl bg-[#131c33] hover:bg-[#1e293b] border border-[#38bdf8]/55 text-[#38bdf8] font-medium text-xs sm:text-sm flex items-center justify-center gap-2 shadow transition cursor-pointer">
+          <span>📋 複製占卜內容（可直接貼給 AI 深度詢問）</span>
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Toast 提示框 -->
+  <div id="toastBox" class="fixed bottom-5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-[#38bdf8] to-[#a855f7] text-[#06080f] font-bold text-xs sm:text-sm px-4 py-2.5 rounded-full shadow-xl opacity-0 pointer-events-none transition-opacity duration-300 z-50">
+    已複製到剪貼簿
+  </div>
+
+  <script>
+    /**
+     * ============================================================================
+     * 1. 1900–2050 年真實農曆與閏月壓縮查表 (LUNAR_INFO)
+     * ============================================================================
+     */
+    const LUNAR_INFO = [
+      0x04bd8, 0x04ae0, 0x0a570, 0x054d5, 0x0d260, 0x0d950, 0x16554, 0x056a0, 0x09ad0, 0x055d2,
+      0x04ae0, 0x0a5b6, 0x0a4d0, 0x0d250, 0x1d255, 0x0b540, 0x0d6a0, 0x0ada2, 0x095b0, 0x14977,
+      0x04970, 0x0a4b0, 0x0b4b5, 0x06a50, 0x06d40, 0x1ab54, 0x02b60, 0x09570, 0x052f2, 0x04970,
+      0x06566, 0x0d4a0, 0x0ea50, 0x06e95, 0x05ad0, 0x02b60, 0x186e3, 0x092e0, 0x1c8d7, 0x0c950,
+      0x0d4a0, 0x1d8a6, 0x0b550, 0x056a0, 0x1a5b4, 0x025d0, 0x092d0, 0x0d2b2, 0x0a950, 0x0b557,
+      0x06ca0, 0x0b550, 0x15355, 0x04da0, 0x0a5d0, 0x14573, 0x052d0, 0x0a9a8, 0x0e950, 0x06aa0,
+      0x0aea6, 0x0ab50, 0x04b60, 0x0aae4, 0x0a570, 0x05260, 0x0f263, 0x0d950, 0x05b57, 0x056a0,
+      0x096d0, 0x04dd5, 0x04ad0, 0x0a4d0, 0x0d4d4, 0x0d250, 0x0d558, 0x0b540, 0x0b5a0, 0x195a6,
+      0x095b0, 0x049b0, 0x0a974, 0x0a4b0, 0x0b27a, 0x06a50, 0x06d40, 0x0af46, 0x0ab60, 0x09570,
+      0x04af5, 0x04970, 0x064b0, 0x074a3, 0x0ea50, 0x06b58, 0x055c0, 0x0ab60, 0x096d5, 0x092e0,
+      0x0c960, 0x0d954, 0x0d4a0, 0x0da50, 0x07552, 0x056a0, 0x0abb7, 0x025d0, 0x092d0, 0x0cab5,
+      0x0a950, 0x0b4a0, 0x0baa4, 0x0ad50, 0x055d9, 0x04ba0, 0x0a5b0, 0x15176, 0x052b0, 0x0a930,
+      0x07954, 0x06aa0, 0x0ad50, 0x05b52, 0x04b60, 0x0a6e6, 0x0a4e0, 0x0d260, 0x0ea65, 0x0d530,
+      0x05aa0, 0x076a3, 0x096d0, 0x04bd7, 0x04ad0, 0x0a4d0, 0x1d0b6, 0x0d250, 0x0d520, 0x0dd45,
+      0x0b5a0, 0x056d0, 0x055b2, 0x049b0, 0x0a577, 0x0a4b0, 0x0aa50, 0x1b255, 0x06d20, 0x0ada0,
+      0x14b63
+    ];
+
+    const TIAN_GAN = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
+    const DI_ZHI = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+    const ZODIAC = ['鼠', '牛', '虎', '兔', '龍', '蛇', '馬', '羊', '猴', '雞', '狗', '豬'];
+    const LUNAR_MONTH_NAMES = ['正', '二', '三', '四', '五', '六', '七', '八', '九', '十', '冬', '臘'];
+    const LUNAR_DAY_NAMES = [
+      '初一', '初二', '初三', '初四', '初五', '初六', '初七', '初八', '初九', '初十',
+      '十一', '十二', '十三', '十四', '十五', '十六', '十七', '十八', '十九', '二十',
+      '廿一', '廿二', '廿三', '廿四', '廿五', '廿六', '廿七', '廿八', '廿九', '三十'
+    ];
+
+    function leapMonth(y) { return LUNAR_INFO[y - 1900] & 0xf; }
+    function leapDays(y) { return leapMonth(y) ? ((LUNAR_INFO[y - 1900] & 0x10000) ? 30 : 29) : 0; }
+    function monthDays(y, m) { return (LUNAR_INFO[y - 1900] & (0x10000 >> m)) ? 30 : 29; }
+    function lYearDays(y) {
+      let sum = 348;
+      for (let i = 0x8000; i > 0x8; i >>= 1) {
+        sum += (LUNAR_INFO[y - 1900] & i) ? 1 : 0;
+      }
+      return sum + leapDays(y);
+    }
+
+    function solarToLunar(year, month, day) {
+      const baseDate = Date.UTC(1900, 0, 31);
+      const objDate = Date.UTC(year, month - 1, day);
+      let offset = Math.floor((objDate - baseDate) / 86400000);
+
+      let i, temp = 0;
+      for (i = 1900; i < 2051 && offset > 0; i++) {
+        temp = lYearDays(i);
+        offset -= temp;
+      }
+      if (offset < 0) {
+        offset += temp;
+        i--;
+      }
+
+      const lunarYear = i;
+      const leap = leapMonth(lunarYear);
+      let isLeap = false;
+
+      for (i = 1; i < 13 && offset > 0; i++) {
+        if (leap > 0 && i === (leap + 1) && !isLeap) {
+          --i;
+          isLeap = true;
+          temp = leapDays(lunarYear);
+        } else {
+          temp = monthDays(lunarYear, i);
+        }
+        if (isLeap && i === (leap + 1)) {
+          isLeap = false;
+        }
+        offset -= temp;
+      }
+
+      if (offset === 0 && leap > 0 && i === leap + 1) {
+        if (isLeap) {
+          isLeap = false;
+        } else {
+          isLeap = true;
+          --i;
+        }
+      }
+      if (offset < 0) {
+        offset += temp;
+        --i;
+      }
+
+      const lunarMonth = i;
+      const lunarDay = offset + 1;
+      const ganIdx = (lunarYear - 4) % 10;
+      const zhiIdx = (lunarYear - 4) % 12;
+
+      return {
+        lunarYear,
+        lunarMonth,
+        lunarDay,
+        isLeap,
+        yearGanIdx: ganIdx,
+        yearZhiIdx: zhiIdx,
+        yearGanZhi: TIAN_GAN[ganIdx] + DI_ZHI[zhiIdx],
+        zodiac: ZODIAC[zhiIdx],
+        monthStr: (isLeap ? '閏' : '') + LUNAR_MONTH_NAMES[lunarMonth - 1] + '月',
+        dayStr: LUNAR_DAY_NAMES[lunarDay - 1],
+        fullStr: `${TIAN_GAN[ganIdx]}${DI_ZHI[zhiIdx]}（${ZODIAC[zhiIdx]}）年 ${isLeap ? '閏' : ''}${LUNAR_MONTH_NAMES[lunarMonth - 1]}月${LUNAR_DAY_NAMES[lunarDay - 1]}`
+      };
+    }
+
+    /**
+     * ============================================================================
+     * 2. 天文 24 節氣精準計算 (太陽黃經交節時刻)
+     * ============================================================================
+     */
+    const JIEQI_NAMES = [
+      '小寒', '大寒', '立春', '雨水', '驚蟄', '春分',
+      '清明', '穀雨', '立夏', '小滿', '芒種', '夏至',
+      '小暑', '大暑', '立秋', '處暑', '白露', '秋分',
+      '寒露', '霜降', '立冬', '小雪', '大雪', '冬至'
+    ];
+    const S_TERM_INFO = [
+      0, 21208, 42467, 63836, 85337, 107014,
+      128867, 150921, 173149, 195551, 218072, 240693,
+      263343, 285989, 308563, 331033, 353350, 375494,
+      397447, 419210, 440795, 462224, 483532, 504758
+    ];
+
+    function getSolarTermTimestamp(y, n) {
+      const base = Date.UTC(1900, 0, 6, 2, 5);
+      return base + 31556925974.7 * (y - 1900) + S_TERM_INFO[n] * 60000;
+    }
+
+    /**
+     * ============================================================================
+     * 3. 紫微斗數確定性工程安星引擎（含十四主星廟旺、六吉六煞、大限歲數、四化落宮）
+     * ============================================================================
+     */
+    const PALACE_NAMES = [
+      '命宮', '兄弟', '夫妻', '子女', '財帛', '疾厄',
+      '遷移', '交友', '官祿', '田宅', '福德', '父母'
+    ];
+
+    const NAYIN_BUREAU = [
+      4, 4, 6, 6, 3, 3, 5, 5, 4, 4,
+      6, 6, 2, 2, 5, 5, 4, 4, 3, 3,
+      2, 2, 5, 5, 6, 6, 3, 3, 2, 2,
+      4, 4, 6, 6, 3, 3, 5, 5, 4, 4,
+      6, 6, 2, 2, 5, 5, 4, 4, 3, 3,
+      2, 2, 5, 5, 6, 6, 3, 3, 2, 2
+    ];
+
+    const BUREAU_NAMES = { 2: '水二局', 3: '木三局', 4: '金四局', 5: '土五局', 6: '火六局' };
+
+    // 十四主星於十二地支（子0..亥11）之廟旺平陷表
+    const STAR_BRIGHTNESS = {
+      '紫微': ['平', '廟', '廟', '旺', '得', '旺', '廟', '廟', '旺', '旺', '得', '旺'],
+      '天機': ['廟', '陷', '得', '旺', '利', '平', '廟', '陷', '得', '旺', '利', '平'],
+      '太陽': ['陷', '不', '旺', '廟', '旺', '旺', '廟', '得', '得', '平', '陷', '陷'],
+      '武曲': ['旺', '廟', '得', '利', '廟', '平', '旺', '廟', '得', '利', '廟', '平'],
+      '天同': ['旺', '不', '利', '平', '平', '廟', '陷', '不', '旺', '平', '平', '廟'],
+      '廉貞': ['平', '利', '廟', '平', '利', '陷', '平', '利', '廟', '平', '利', '陷'],
+      '天府': ['廟', '廟', '廟', '得', '廟', '得', '旺', '廟', '得', '旺', '廟', '得'],
+      '太陰': ['廟', '廟', '陷', '陷', '陷', '陷', '陷', '平', '利', '旺', '旺', '廟'],
+      '貪狼': ['旺', '廟', '平', '利', '廟', '陷', '旺', '廟', '平', '利', '廟', '陷'],
+      '巨門': ['旺', '不', '廟', '廟', '陷', '旺', '旺', '不', '廟', '廟', '陷', '旺'],
+      '天相': ['廟', '廟', '廟', '陷', '得', '得', '廟', '得', '廟', '陷', '得', '得'],
+      '天梁': ['廟', '旺', '廟', '廟', '旺', '陷', '廟', '旺', '陷', '得', '旺', '陷'],
+      '七殺': ['旺', '廟', '廟', '旺', '得', '平', '旺', '廟', '廟', '旺', '得', '平'],
+      '破軍': ['廟', '旺', '得', '陷', '旺', '平', '廟', '旺', '得', '陷', '旺', '平']
+    };
+
+    const BRIGHTNESS_CLASS = {
+      '廟': 'text-[#fbbf24]',
+      '旺': 'text-[#38bdf8]',
+      '得': 'text-[#c084fc]',
+      '利': 'text-slate-300',
+      '平': 'text-slate-400',
+      '不': 'text-slate-500',
+      '陷': 'text-[#fb7185]'
+    };
+
+    const SIHUA_TABLE = [
+      ['廉貞', '破軍', '武曲', '太陽'],
+      ['天機', '天梁', '紫微', '太陰'],
+      ['天同', '天機', '文昌', '廉貞'],
+      ['太陰', '天同', '天機', '巨門'],
+      ['貪狼', '太陰', '右弼', '天機'],
+      ['武曲', '貪狼', '天梁', '文曲'],
+      ['太陽', '武曲', '太陰', '天同'],
+      ['巨門', '太陽', '文曲', '文昌'],
+      ['天梁', '紫微', '左輔', '武曲'],
+      ['破軍', '巨門', '太陰', '貪狼']
+    ];
+
+    const LUCUN_POS = [2, 3, 5, 6, 5, 6, 8, 9, 11, 0];
+    const TIANKUI_POS = [1, 0, 11, 11, 1, 0, 6, 6, 3, 3];
+    const TIANYUE_POS = [7, 8, 9, 9, 7, 8, 2, 2, 5, 5];
+    const MING_MASTER = ['貪狼', '巨門', '祿存', '文曲', '廉貞', '武曲', '破軍', '武曲', '廉貞', '文曲', '祿存', '巨門'];
+    const SHEN_MASTER = ['火星', '天相', '天梁', '天同', '文昌', '天機', '火星', '天相', '天梁', '天同', '文昌', '天機'];
+
+    function calculateZiWei(lunar, zhiHourIdx, gender, leapMode) {
+      let effectiveMonth = lunar.lunarMonth;
+      let leapAppliedNote = '非閏月生人，依本生月起盤';
+      if (lunar.isLeap) {
+        if (leapMode === 'mid' && lunar.lunarDay >= 16) {
+          effectiveMonth = (lunar.lunarMonth % 12) + 1;
+          leapAppliedNote = `閏${LUNAR_MONTH_NAMES[lunar.lunarMonth - 1]}月${lunar.lunarDay}日，依「月中分界」進算下月（${LUNAR_MONTH_NAMES[effectiveMonth - 1]}月）`;
+        } else {
+          leapAppliedNote = `閏${LUNAR_MONTH_NAMES[lunar.lunarMonth - 1]}月${lunar.lunarDay}日，依「${leapMode === 'mid' ? '月中分界·前十五日歸本月' : '全月歸本月'}」起盤`;
+        }
+      }
+
+      const monthZhi = (2 + effectiveMonth - 1) % 12;
+      const mingZhi = (monthZhi - zhiHourIdx + 12) % 12;
+      const shenZhi = (monthZhi + zhiHourIdx) % 12;
+      const yinGan = ((lunar.yearGanIdx % 5) * 2 + 2) % 10;
+
+      const palaces = Array.from({ length: 12 }, (_, zhi) => {
+        const offsetFromYin = (zhi - 2 + 12) % 12;
+        const stemIdx = (yinGan + offsetFromYin) % 10;
+        const palaceIdx = (mingZhi - zhi + 12) % 12;
+        return {
+          zhiIdx: zhi,
+          zhiName: DI_ZHI[zhi],
+          stemIdx,
+          stemName: TIAN_GAN[stemIdx],
+          palaceName: PALACE_NAMES[palaceIdx],
+          palaceOrderIdx: palaceIdx,
+          isMing: zhi === mingZhi,
+          isShen: zhi === shenZhi,
+          majorStars: [],
+          minorStars: [],
+          daxianRange: ''
+        };
+      });
+
+      const mingStem = palaces[mingZhi].stemIdx;
+      let jiaziIdx = 0;
+      for (let k = 0; k < 60; k++) {
+        if (k % 10 === mingStem && k % 12 === mingZhi) {
+          jiaziIdx = k;
+          break;
+        }
+      }
+      const bureauNum = NAYIN_BUREAU[jiaziIdx];
+      const bureauName = BUREAU_NAMES[bureauNum];
+
+      // 大限歲數計算（陽男陰女順行、陰男陽女逆行）
+      const isYangYear = lunar.yearGanIdx % 2 === 0;
+      const isForward = (isYangYear && gender === 'M') || (!isYangYear && gender === 'F');
+      for (let step = 0; step < 12; step++) {
+        const targetZhi = isForward ? (mingZhi + step) % 12 : (mingZhi - step + 12) % 12;
+        const ageStart = bureauNum + step * 10;
+        palaces[targetZhi].daxianRange = `${ageStart}-${ageStart + 9}`;
+      }
+
+      // 紫微星系
+      const day = lunar.lunarDay;
+      let ziweiZhi;
+      if (day % bureauNum === 0) {
+        const q = day / bureauNum;
+        ziweiZhi = (2 + q - 1) % 12;
+      } else {
+        const q = Math.floor(day / bureauNum) + 1;
+        const diff = q * bureauNum - day;
+        let basePos = (2 + q - 1) % 12;
+        ziweiZhi = diff % 2 === 1
+          ? (basePos - diff + 24) % 12
+          : (basePos + diff) % 12;
+      }
+
+      [
+        { name: '紫微', offset: 0 },
+        { name: '天機', offset: -1 },
+        { name: '太陽', offset: -3 },
+        { name: '武曲', offset: -4 },
+        { name: '天同', offset: -5 },
+        { name: '廉貞', offset: -8 }
+      ].forEach(s => {
+        const z = (ziweiZhi + s.offset + 12) % 12;
+        palaces[z].majorStars.push({ name: s.name, brightness: STAR_BRIGHTNESS[s.name][z] });
+      });
+
+      // 天府星系
+      const tianfuZhi = (4 - ziweiZhi + 12) % 12;
+      [
+        { name: '天府', offset: 0 },
+        { name: '太陰', offset: 1 },
+        { name: '貪狼', offset: 2 },
+        { name: '巨門', offset: 3 },
+        { name: '天相', offset: 4 },
+        { name: '天梁', offset: 5 },
+        { name: '七殺', offset: 6 },
+        { name: '破軍', offset: 10 }
+      ].forEach(s => {
+        const z = (tianfuZhi + s.offset) % 12;
+        palaces[z].majorStars.push({ name: s.name, brightness: STAR_BRIGHTNESS[s.name][z] });
+      });
+
+      // 祿存、擎羊、陀羅、天魁、天鉞
+      const lucunZhi = LUCUN_POS[lunar.yearGanIdx];
+      palaces[lucunZhi].minorStars.push('祿存');
+      palaces[(lucunZhi + 1) % 12].minorStars.push('擎羊');
+      palaces[(lucunZhi - 1 + 12) % 12].minorStars.push('陀羅');
+      palaces[TIANKUI_POS[lunar.yearGanIdx]].minorStars.push('天魁');
+      palaces[TIANYUE_POS[lunar.yearGanIdx]].minorStars.push('天鉞');
+
+      // 文昌、文曲、左輔、右弼
+      palaces[(10 - zhiHourIdx + 12) % 12].minorStars.push('文昌');
+      palaces[(4 + zhiHourIdx) % 12].minorStars.push('文曲');
+      palaces[(4 + effectiveMonth - 1) % 12].minorStars.push('左輔');
+      palaces[(10 - (effectiveMonth - 1) + 24) % 12].minorStars.push('右弼');
+
+      // 火星、鈴星、地空、地劫
+      const yzGroup = lunar.yearZhiIdx % 4; // 0:申子辰, 1:巳酉丑, 2:寅午戌, 3:亥卯未
+      const huoStart = [2, 3, 1, 9][yzGroup];
+      const lingStart = [10, 10, 3, 10][yzGroup];
+      palaces[(huoStart + zhiHourIdx) % 12].minorStars.push('火星');
+      palaces[(lingStart + zhiHourIdx) % 12].minorStars.push('鈴星');
+      palaces[(11 - zhiHourIdx + 12) % 12].minorStars.push('地空');
+      palaces[(11 + zhiHourIdx) % 12].minorStars.push('地劫');
+
+      const sihuaStars = SIHUA_TABLE[lunar.yearGanIdx];
+      const sihuaMap = {
+        [sihuaStars[0]]: { type: '祿', cls: 'sihua-lu' },
+        [sihuaStars[1]]: { type: '權', cls: 'sihua-quan' },
+        [sihuaStars[2]]: { type: '科', cls: 'sihua-ke' },
+        [sihuaStars[3]]: { type: '忌', cls: 'sihua-ji' }
+      };
+
+      const sihuaLocations = sihuaStars.map((st, idx) => {
+        const foundP = palaces.find(p =>
+          p.majorStars.some(m => m.name === st) || p.minorStars.includes(st)
+        );
+        return {
+          type: ['化祿', '化權', '化科', '化忌'][idx],
+          star: st,
+          palaceName: foundP ? foundP.palaceName : '未知',
+          stemZhi: foundP ? `${foundP.stemName}${foundP.zhiName}` : ''
+        };
+      });
+
+      const yinYangGender = (isYangYear ? '陽' : '陰') + (gender === 'M' ? '男' : '女');
+
+      return {
+        palaces,
+        mingZhi,
+        shenZhi,
+        bureauNum,
+        bureauName,
+        yinYangGender,
+        isForward,
+        mingMaster: MING_MASTER[mingZhi],
+        shenMaster: SHEN_MASTER[lunar.yearZhiIdx],
+        sihuaStars,
+        sihuaMap,
+        sihuaLocations,
+        leapAppliedNote
+      };
+    }
+
+    /**
+     * ============================================================================
+     * 4. 四柱八字與八字流年完整排盤引擎
+     * ============================================================================
+     */
+    const WUXING_MAP = {
+      '甲': '木', '乙': '木', '丙': '火', '丁': '火', '戊': '土',
+      '己': '土', '庚': '金', '辛': '金', '壬': '水', '癸': '水',
+      '子': '水', '丑': '土', '寅': '木', '卯': '木', '辰': '土', '巳': '火',
+      '午': '火', '未': '土', '申': '金', '酉': '金', '戌': '土', '亥': '水'
+    };
+
+    const ZHI_HIDDEN_STEMS = {
+      '子': ['癸'],
+      '丑': ['己', '癸', '辛'],
+      '寅': ['甲', '丙', '戊'],
+      '卯': ['乙'],
+      '辰': ['戊', '乙', '癸'],
+      '巳': ['丙', '庚', '戊'],
+      '午': ['丁', '己'],
+      '未': ['己', '丁', '乙'],
+      '申': ['庚', '壬', '戊'],
+      '酉': ['辛'],
+      '戌': ['戊', '辛', '丁'],
+      '亥': ['壬', '甲']
+    };
+
+    function getTenGod(dayGanIdx, targetGanName) {
+      const targetIdx = TIAN_GAN.indexOf(targetGanName);
+      if (targetIdx === -1) return '';
+      const dayEl = Math.floor(dayGanIdx / 2);
+      const tarEl = Math.floor(targetIdx / 2);
+      const samePolarity = (dayGanIdx % 2) === (targetIdx % 2);
+      const diff = (tarEl - dayEl + 5) % 5;
+
+      if (diff === 0) return samePolarity ? '比肩' : '劫財';
+      if (diff === 1) return samePolarity ? '食神' : '傷官';
+      if (diff === 2) return samePolarity ? '偏財' : '正財';
+      if (diff === 3) return samePolarity ? '七殺' : '正官';
+      if (diff === 4) return samePolarity ? '偏印' : '正印';
+      return '';
+    }
+
+    function calculateBaZi(year, month, day, rawHourSelectIdx, gender, ziDayMode) {
+      const hourMinutesMap = [
+        [0, 30], [2, 0], [4, 0], [6, 0], [8, 0], [10, 0],
+        [12, 0], [14, 0], [16, 0], [18, 0], [20, 0], [22, 0], [23, 30]
+      ];
+      const [hVal, mVal] = hourMinutesMap[rawHourSelectIdx];
+      const zhiHourIdx = rawHourSelectIdx === 12 ? 0 : rawHourSelectIdx;
+
+      const targetTs = Date.UTC(year, month - 1, day, hVal - 8, mVal);
+
+      const lichunTs = getSolarTermTimestamp(year, 2);
+      const baziYear = targetTs < lichunTs ? year - 1 : year;
+      const yearGanIdx = (baziYear - 4) % 10;
+      const yearZhiIdx = (baziYear - 4) % 12;
+
+      const jieIndices = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22];
+      const jieZhiMap = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0];
+
+      let monthZhiIdx = 0;
+      let currentJieName = '大雪';
+      let nextJieName = '小寒';
+      let prevJieTs = getSolarTermTimestamp(year - 1, 22);
+      let nextJieTs = getSolarTermTimestamp(year, 0);
+
+      for (let i = 0; i < 12; i++) {
+        const ts = getSolarTermTimestamp(year, jieIndices[i]);
+        if (targetTs >= ts) {
+          monthZhiIdx = jieZhiMap[i];
+          currentJieName = JIEQI_NAMES[jieIndices[i]];
+          prevJieTs = ts;
+          if (i < 11) {
+            nextJieName = JIEQI_NAMES[jieIndices[i + 1]];
+            nextJieTs = getSolarTermTimestamp(year, jieIndices[i + 1]);
+          } else {
+            nextJieName = '小寒(次年)';
+            nextJieTs = getSolarTermTimestamp(year + 1, 0);
+          }
+        } else {
+          if (i === 0) {
+            currentJieName = '大雪(上年)';
+            nextJieName = '小寒';
+          }
+          break;
+        }
+      }
+
+      const yinGan = ((yearGanIdx % 5) * 2 + 2) % 10;
+      const monthOffsetFromYin = (monthZhiIdx - 2 + 12) % 12;
+      const monthGanIdx = (yinGan + monthOffsetFromYin) % 10;
+
+      const baseDayUtc = Date.UTC(2000, 0, 1);
+      const curDayUtc = Date.UTC(year, month - 1, day);
+      let diffDays = Math.floor((curDayUtc - baseDayUtc) / 86400000);
+      if (rawHourSelectIdx === 12 && ziDayMode === '23') {
+        diffDays += 1;
+      }
+      const dayJiazi = ((54 + diffDays) % 60 + 60) % 60;
+      const dayGanIdx = dayJiazi % 10;
+      const dayZhiIdx = dayJiazi % 12;
+
+      const ziGan = ((dayGanIdx % 5) * 2) % 10;
+      const hourGanIdx = (ziGan + zhiHourIdx) % 10;
+      const hourZhiIdx = zhiHourIdx;
+
+      const rawPillars = [
+        { title: '年柱', ganIdx: yearGanIdx, zhiIdx: yearZhiIdx },
+        { title: '月柱', ganIdx: monthGanIdx, zhiIdx: monthZhiIdx },
+        { title: '日柱', ganIdx: dayGanIdx, zhiIdx: dayZhiIdx, isDayMaster: true },
+        { title: '時柱', ganIdx: hourGanIdx, zhiIdx: hourZhiIdx }
+      ];
+
+      const wuxingCount = { '木': 0, '火': 0, '土': 0, '金': 0, '水': 0 };
+      const pillars = rawPillars.map(p => {
+        const gan = TIAN_GAN[p.ganIdx];
+        const zhi = DI_ZHI[p.zhiIdx];
+        const hidden = ZHI_HIDDEN_STEMS[zhi].map((hGan, idx) => ({
+          gan: hGan,
+          role: idx === 0 ? '本氣' : (idx === 1 ? '中氣' : '餘氣'),
+          tenGod: getTenGod(dayGanIdx, hGan)
+        }));
+
+        wuxingCount[WUXING_MAP[gan]] += 1;
+        wuxingCount[WUXING_MAP[zhi]] += 1;
+
+        return {
+          ...p,
+          gan,
+          zhi,
+          ganEl: WUXING_MAP[gan],
+          zhiEl: WUXING_MAP[zhi],
+          tenGod: p.isDayMaster ? '日主（元神）' : getTenGod(dayGanIdx, gan),
+          hidden
+        };
+      });
+
+      const isYangYearStem = (yearGanIdx % 2 === 0);
+      const isForward = (isYangYearStem && gender === 'M') || (!isYangYearStem && gender === 'F');
+      const diffMs = isForward ? (nextJieTs - targetTs) : (targetTs - prevJieTs);
+      const diffHours = Math.max(0, diffMs / 3600000);
+      const startAge = Math.max(1, Math.round(diffHours / 72));
+      const startSolarYear = year + startAge;
+
+      const dayunList = [];
+      for (let step = 1; step <= 8; step++) {
+        const dir = isForward ? step : -step;
+        const dGanIdx = (monthGanIdx + dir + 20) % 10;
+        const dZhiIdx = (monthZhiIdx + dir + 24) % 12;
+        const dGan = TIAN_GAN[dGanIdx];
+        const dZhi = DI_ZHI[dZhiIdx];
+        const ageFrom = startAge + (step - 1) * 10;
+        const yearFrom = startSolarYear + (step - 1) * 10;
+        dayunList.push({
+          step,
+          gan: dGan,
+          zhi: dZhi,
+          ganZhi: dGan + dZhi,
+          ganEl: WUXING_MAP[dGan],
+          zhiEl: WUXING_MAP[dZhi],
+          tenGod: getTenGod(dayGanIdx, dGan),
+          zhiTenGod: getTenGod(dayGanIdx, ZHI_HIDDEN_STEMS[dZhi][0]),
+          hidden: ZHI_HIDDEN_STEMS[dZhi].map((hGan, idx) => ({
+            gan: hGan,
+            role: idx === 0 ? '本氣' : (idx === 1 ? '中氣' : '餘氣'),
+            tenGod: getTenGod(dayGanIdx, hGan)
+          })),
+          ageFrom,
+          yearFrom
+        });
+      }
+
+      return {
+        baziYear,
+        pillars,
+        dayGanIdx,
+        dayMaster: TIAN_GAN[dayGanIdx],
+        dayMasterEl: WUXING_MAP[TIAN_GAN[dayGanIdx]],
+        wuxingCount,
+        currentJieName,
+        nextJieName,
+        isForward,
+        startAge,
+        startSolarYear,
+        dayunList,
+        ziDayModeNote: ziDayMode === '23' ? '23:00換日柱' : '00:00換日柱'
+      };
+    }
+
+    /**
+     * ============================================================================
+     * 5. 奇門遁甲演算引擎
+     * ============================================================================
+     */
+    const QIMEN_PALACES = [
+      { num: 4, name: '巽四宮', dir: '東南', trigram: '☴' },
+      { num: 9, name: '離九宮', dir: '正南', trigram: '☲' },
+      { num: 2, name: '坤二宮', dir: '西南', trigram: '☷' },
+      { num: 3, name: '震三宮', dir: '正東', trigram: '☳' },
+      { num: 5, name: '中五宮', dir: '中央', trigram: '☯' },
+      { num: 7, name: '兌七宮', dir: '正西', trigram: '☱' },
+      { num: 8, name: '艮八宮', dir: '東北', trigram: '☶' },
+      { num: 1, name: '坎一宮', dir: '正北', trigram: '☵' },
+      { num: 6, name: '乾六宮', dir: '西北', trigram: '☰' }
+    ];
+
+    const LUOSHU_RING = [1, 8, 3, 4, 9, 2, 7, 6];
+    const SANQI_LIUYI = ['戊', '己', '庚', '辛', '壬', '癸', '丁', '丙', '乙'];
+    const NINE_STARS_ORIG = {
+      1: '天蓬', 8: '天任', 3: '天沖', 4: '天輔',
+      9: '天英', 2: '天芮', 7: '天柱', 6: '天心', 5: '天禽'
+    };
+    const EIGHT_GATES_ORIG = {
+      1: '休門', 8: '生門', 3: '傷門', 4: '杜門',
+      9: '景門', 2: '死門', 7: '驚門', 6: '開門'
+    };
+    const EIGHT_DEITIES = ['值符', '騰蛇', '太陰', '六合', '白虎', '玄武', '九地', '九天'];
+
+    function calculateQiMen(queryDateObj) {
+      const y = queryDateObj.getFullYear();
+      const m = queryDateObj.getMonth() + 1;
+      const d = queryDateObj.getDate();
+      const hr = queryDateObj.getHours();
+      const hourIdx = Math.floor(((hr + 1) % 24) / 2);
+
+      const ts = queryDateObj.getTime();
+      const xiazhiTs = getSolarTermTimestamp(y, 11);
+      const dongzhiTs = getSolarTermTimestamp(y, 23);
+      const isYangDun = !(ts >= xiazhiTs && ts < dongzhiTs);
+
+      const baseDayUtc = Date.UTC(2000, 0, 1);
+      const curDayUtc = Date.UTC(y, m - 1, d);
+      const diffDays = Math.floor((curDayUtc - baseDayUtc) / 86400000);
+      const dayJiazi = ((54 + diffDays) % 60 + 60) % 60;
+      const dayGanIdx = dayJiazi % 10;
+      const dayZhiIdx = dayJiazi % 12;
+
+      const ziGan = ((dayGanIdx % 5) * 2) % 10;
+      const hourGanIdx = (ziGan + hourIdx) % 10;
+      const hourZhiIdx = hourIdx;
+
+      const yuanIdx = dayZhiIdx % 3;
+      const yuanName = ['上元', '中元', '下元'][yuanIdx];
+      const juNum = ((m + yuanIdx * 3) % 9) + 1;
+
+      const diPan = {};
+      for (let i = 0; i < 9; i++) {
+        const pNum = isYangDun
+          ? ((juNum - 1 + i) % 9) + 1
+          : ((juNum - 1 - i + 18) % 9) + 1;
+        diPan[pNum] = SANQI_LIUYI[i];
+      }
+
+      const xunOffset = (hourZhiIdx - hourGanIdx + 12) % 12;
+      const xunMap = { 0: '戊', 10: '己', 8: '庚', 6: '辛', 4: '壬', 2: '癸' };
+      const xunHeadStem = xunMap[xunOffset] || '戊';
+
+      let zhiFuOrigPalace = 1;
+      for (let p = 1; p <= 9; p++) {
+        if (diPan[p] === xunHeadStem) {
+          zhiFuOrigPalace = p === 5 ? 2 : p;
+          break;
+        }
+      }
+      const zhiFuStar = NINE_STARS_ORIG[zhiFuOrigPalace];
+      const zhiShiGate = EIGHT_GATES_ORIG[zhiFuOrigPalace];
+
+      const hourGanStr = TIAN_GAN[hourGanIdx];
+      let targetFuPalace = zhiFuOrigPalace;
+      for (let p = 1; p <= 9; p++) {
+        if (diPan[p] === hourGanStr) {
+          targetFuPalace = p === 5 ? 2 : p;
+          break;
+        }
+      }
+
+      const steps = hourGanIdx;
+      const zhiShiTargetPalace = isYangDun
+        ? (((zhiFuOrigPalace - 1 + steps) % 9) + 1 === 5 ? 2 : ((zhiFuOrigPalace - 1 + steps) % 9) + 1)
+        : (((zhiFuOrigPalace - 1 - steps + 18) % 9) + 1 === 5 ? 2 : ((zhiFuOrigPalace - 1 - steps + 18) % 9) + 1);
+
+      const ringStarStartIdx = LUOSHU_RING.indexOf(zhiFuOrigPalace);
+      const ringStarTargetIdx = LUOSHU_RING.indexOf(targetFuPalace);
+      const starShift = (ringStarTargetIdx - ringStarStartIdx + 8) % 8;
+
+      const ringGateStartIdx = LUOSHU_RING.indexOf(zhiFuOrigPalace);
+      const ringGateTargetIdx = LUOSHU_RING.indexOf(zhiShiTargetPalace);
+      const gateShift = (ringGateTargetIdx - ringGateStartIdx + 8) % 8;
+
+      const palaceData = {};
+      LUOSHU_RING.forEach((pNum, idx) => {
+        const origStarPalace = LUOSHU_RING[(idx - starShift + 8) % 8];
+        const origGatePalace = LUOSHU_RING[(idx - gateShift + 8) % 8];
+        const deityOffset = isYangDun
+          ? (idx - ringStarTargetIdx + 8) % 8
+          : (ringStarTargetIdx - idx + 8) % 8;
+
+        palaceData[pNum] = {
+          diStem: diPan[pNum],
+          tianStem: diPan[origStarPalace],
+          star: NINE_STARS_ORIG[origStarPalace],
+          gate: EIGHT_GATES_ORIG[origGatePalace],
+          deity: EIGHT_DEITIES[deityOffset],
+          isZhiFu: pNum === targetFuPalace,
+          isZhiShi: pNum === zhiShiTargetPalace
+        };
+      });
+      palaceData[5] = { diStem: diPan[5], tianStem: '—', star: '天禽(寄坤二)', gate: '中宮', deity: '—' };
+
+      return {
+        dunText: `拆補法·${isYangDun ? '陽遁' : '陰遁'}${juNum}局（${yuanName}）`,
+        dayGanZhi: TIAN_GAN[dayGanIdx] + DI_ZHI[dayZhiIdx],
+        hourGanZhi: TIAN_GAN[hourGanIdx] + DI_ZHI[hourZhiIdx],
+        zhiFuStar,
+        zhiShiGate,
+        targetFuPalace,
+        zhiShiTargetPalace,
+        palaceData
+      };
+    }
+
+    /**
+     * ============================================================================
+     * 6. 月老姻緣、陽宅風水、78張塔羅、大正藏經典資料庫
+     * ============================================================================
+     */
+    const YUELAO_STICKS = [
+      { no: '第一籤', level: '上上大吉', poem: '關關雎鳩在河之洲，窈窕淑女君子好逑。', desc: '天作之合，良緣已近。若單身者近期易遇三觀契合之正緣；有伴者感情升溫，宜論及婚嫁或更進一步承諾。' },
+      { no: '第七籤', level: '上吉', poem: '有意栽花花不發，無心插柳柳成蔭。', desc: '感情不必過度強求或刻意討好，保持自在真誠的狀態，反而在日常社交與工作場合吸引欣賞你本質的人。' },
+      { no: '第十四籤', level: '中吉', poem: '雲開見月分明照，莫聽旁人閒是非。', desc: '過往的情感迷霧即將散去，溝通時宜坦誠直率，切勿受外界流言或過度猜疑影響彼此信任。' },
+      { no: '第二十一籤', level: '上吉', poem: '千里姻緣一線牽，紅絲暗繫早註定。', desc: '緣分跨越距離或生活圈而來，可能是透過親友介紹、遠方重逢或共同興趣結識，宜把握主動交流的契機。' },
+      { no: '第二十八籤', level: '中平', poem: '慢工出細活，水到自然渠成。', desc: '現階段宜先充實自我與穩定情緒邊界，感情需要時間培養默契，急躁反而容易錯判對象。' },
+      { no: '第三十六籤', level: '上上籤', poem: '百年修得同船渡，千世修來共枕眠。', desc: '深厚宿緣顯現，彼此在價值觀與生活節奏上高度互補，遇到分歧時多一份體諒便能長久相守。' },
+      { no: '第四十五籤', level: '中吉', poem: '花開堪折直須折，莫待無花空折枝。', desc: '眼前已有不錯的互動對象或曖昧契機，若心中已有答案，不妨適時釋出善意訊號，莫因矜持錯過良機。' },
+      { no: '第五十二籤', level: '中平', poem: '欲速則不達，靜待春風吹又生。', desc: '近期情感磁場處於整理期，適合斷捨離消耗精力的舊關係，把重心放回自己身上，正緣自會隨季節到來。' }
+    ];
+
+    function calculateYueLao(lunar, bazi, ziwei) {
+      const hongLuanZhi = DI_ZHI[(3 - lunar.yearZhiIdx + 12) % 12];
+      const tianXiZhi = DI_ZHI[(3 - lunar.yearZhiIdx + 18) % 12];
+      const dayZhiIdx = DI_ZHI.indexOf(bazi.pillars[2].zhi);
+      const peachMap = {
+        8: '酉', 0: '酉', 4: '酉',
+        2: '卯', 6: '卯', 10: '卯',
+        5: '午', 9: '午', 1: '午',
+        11: '子', 3: '子', 7: '子'
+      };
+      const xianChiZhi = peachMap[dayZhiIdx];
+      const spousePalace = ziwei.palaces.find(p => p.palaceName === '夫妻');
+      const spouseStars = spousePalace.majorStars.length
+        ? spousePalace.majorStars.map(s => `${s.name}[${s.brightness}]`).join('、')
+        : '無主星（借對宮官祿宮星曜）';
+
+      return {
+        hongLuanZhi,
+        tianXiZhi,
+        xianChiZhi,
+        spousePalaceStemZhi: spousePalace.stemName + spousePalace.zhiName,
+        spouseStars,
+        currentStick: null
+      };
+    }
+
+    const GUA_INFO = {
+      1: { name: '坎卦', element: '水', group: '東四命', dirs: { '東南': '生氣(大吉)', '正東': '天醫(次吉)', '正南': '延年(中吉)', '正北': '伏位(小吉)', '西南': '絕命(大凶)', '東北': '五鬼(次凶)', '西北': '六煞(中凶)', '正西': '禍害(小凶)' } },
+      2: { name: '坤卦', element: '土', group: '西四命', dirs: { '東北': '生氣(大吉)', '正西': '天醫(次吉)', '西北': '延年(中吉)', '西南': '伏位(小吉)', '正北': '絕命(大凶)', '東南': '五鬼(次凶)', '正南': '六煞(中凶)', '正東': '禍害(小凶)' } },
+      3: { name: '震卦', element: '木', group: '東四命', dirs: { '正南': '生氣(大吉)', '正北': '天醫(次吉)', '東南': '延年(中吉)', '正東': '伏位(小吉)', '正西': '絕命(大凶)', '西北': '五鬼(次凶)', '東北': '六煞(中凶)', '西南': '禍害(小凶)' } },
+      4: { name: '巽卦', element: '木', group: '東四命', dirs: { '正北': '生氣(大吉)', '正南': '天醫(次吉)', '正東': '延年(中吉)', '東南': '伏位(小吉)', '東北': '絕命(大凶)', '西南': '五鬼(次凶)', '正西': '六煞(中凶)', '西北': '禍害(小凶)' } },
+      6: { name: '乾卦', element: '金', group: '西四命', dirs: { '正西': '生氣(大吉)', '東北': '天醫(次吉)', '西南': '延年(中吉)', '西北': '伏位(小吉)', '正南': '絕命(大凶)', '正東': '五鬼(次凶)', '正北': '六煞(中凶)', '東南': '禍害(小凶)' } },
+      7: { name: '兌卦', element: '金', group: '西四命', dirs: { '西北': '生氣(大吉)', '西南': '天醫(次吉)', '東北': '延年(中吉)', '正西': '伏位(小吉)', '正東': '絕命(大凶)', '正南': '五鬼(次凶)', '東南': '六煞(中凶)', '正北': '禍害(小凶)' } },
+      8: { name: '艮卦', element: '土', group: '西四命', dirs: { '西南': '生氣(大吉)', '西北': '天醫(次吉)', '正西': '延年(中吉)', '東北': '伏位(小吉)', '東南': '絕命(大凶)', '正北': '五鬼(次凶)', '正東': '六煞(中凶)', '正南': '禍害(小凶)' } },
+      9: { name: '離卦', element: '火', group: '東四命', dirs: { '正東': '生氣(大吉)', '東南': '天醫(次吉)', '正北': '延年(中吉)', '正南': '伏位(小吉)', '西北': '絕命(大凶)', '正西': '五鬼(次凶)', '西南': '六煞(中凶)', '東北': '禍害(小凶)' } }
+    };
+
+    function calculateFengShui(solarYear, gender) {
+      let guaNum;
+      const lastTwo = solarYear % 100;
+      if (solarYear < 2000) {
+        guaNum = gender === 'M' ? (100 - lastTwo) % 9 : (lastTwo - 4 + 90) % 9;
+      } else {
+        guaNum = gender === 'M' ? (99 - lastTwo) % 9 : (lastTwo + 5) % 9;
+      }
+      if (guaNum === 0) guaNum = 9;
+
+      let mappedNote = '';
+      if (guaNum === 5) {
+        if (gender === 'M') {
+          guaNum = 2;
+          mappedNote = '（原算五黃中宮，男命依例寄坤二宮）';
+        } else {
+          guaNum = 8;
+          mappedNote = '（原算五黃中宮，女命依例寄艮八宮）';
+        }
+      }
+
+      return {
+        guaNum,
+        mappedNote,
+        ...GUA_INFO[guaNum]
+      };
+    }
+
+    const MAJOR_ARCANA = [
+      { id: 0, name: '0 愚者 (The Fool)', up: '新的開始、無懼冒險、純真自由、信任直覺', rev: '魯莽衝動、缺乏計畫、逃避責任、盲目樂觀' },
+      { id: 1, name: 'I 魔術師 (The Magician)', up: '顯化創造、資源俱足、溝通技巧、主動出擊', rev: '能力分散、操弄欺瞞、猶豫未決、資源浪費' },
+      { id: 2, name: 'II 女祭司 (The High Priestess)', up: '內在直覺、靜觀其變、智慧沉澱、潛意識洞察', rev: '情緒壓抑、過度冷漠、忽略內心聲音、表面膚淺' },
+      { id: 3, name: 'III 皇后 (The Empress)', up: '豐盛滋養、創造力綻放、感性魅力、物質與情感收穫', rev: '過度依賴、停滯怠惰、情緒勒索、自我匱乏感' },
+      { id: 4, name: 'IV 皇帝 (The Emperor)', up: '建立秩序、權威擔當、理性結構、穩定掌控力', rev: '專制固執、控制欲過強、缺乏彈性、濫用權力' },
+      { id: 5, name: 'V 教皇 (The Hierophant)', up: '傳統規範、師長指引、精神信仰、團隊共識', rev: '打破常規、盲從教條、思想受限、特立獨行' },
+      { id: 6, name: 'VI 戀人 (The Lovers)', up: '深度契合、重要抉擇、價值觀一致、真誠連結', rev: '關係失衡、逃避選擇、溝通錯頻、誘惑干擾' },
+      { id: 7, name: 'VII 戰車 (The Chariot)', up: '意志勝利、全力衝刺、克服矛盾、目標明確', rev: '方向失控、內在衝突、急躁挫敗、動力耗盡' },
+      { id: 8, name: 'VIII 力量 (Strength)', up: '以柔克剛、內在勇氣、耐心包容、駕馭本能', rev: '自我懷疑、情緒失控、軟弱退縮、缺乏信心' },
+      { id: 9, name: 'IX 隱者 (The Hermit)', up: '獨處內省、追尋真理、沉澱智慧、指引明燈', rev: '孤僻封閉、逃避社交、過度鑽牛角尖、迷失方向' },
+      { id: 10, name: 'X 命運之輪 (Wheel of Fortune)', up: '時來運轉、契機降臨、順勢而為、週期更迭', rev: '暫時阻滯、抗拒改變、運勢起伏、重複舊模式' },
+      { id: 11, name: 'XI 正義 (Justice)', up: '公平客觀、因果平衡、理性裁決、誠實面對', rev: '偏見不公、逃避後果、失衡糾結、自欺欺人' },
+      { id: 12, name: 'XII 吊人 (The Hanged Man)', up: '換位思考、暫停沉澱、甘願付出、破繭前夕', rev: '無謂犧牲、固執不變、拖延僵局、掙扎痛苦' },
+      { id: 13, name: 'XIII 死神 (Death)', up: '徹底結束、斷捨離、蛻變重生、告別過去', rev: '抗拒放手、恐懼改變、停滯腐朽、拖泥帶水' },
+      { id: 14, name: 'XIV 節制 (Temperance)', up: '調和平衡、中庸之道、耐心融合、療癒修復', rev: '極端失衡、急躁衝突、溝通不良、消耗過度' },
+      { id: 15, name: 'XV 惡魔 (The Devil)', up: '慾望執念、物質誘惑、看清束縛、面對陰影', rev: '掙脫枷鎖、覺醒重獲自由、戒除依賴、釋放恐懼' },
+      { id: 16, name: 'XVI 高塔 (The Tower)', up: '突發劇變、打破假象、結構重組、當頭棒喝', rev: '延緩崩塌、內在震盪、抗拒面對真相、驚險避禍' },
+      { id: 17, name: 'XVII 星星 (The Star)', up: '希望曙光、靈感湧現、平靜療癒、信任未來', rev: '信心動搖、失望悲觀、靈感枯竭、自我設限' },
+      { id: 18, name: 'XVIII 月亮 (The Moon)', up: '潛意識浮現、敏銳夢境、面對不安、穿透迷霧', rev: '迷霧漸散、看清真相、克服恐懼、情緒平復' },
+      { id: 19, name: 'XIX 太陽 (The Sun)', up: '光明喜悅、成功綻放、坦率活力、清晰正能量', rev: '暫時陰霾、過度樂觀、光芒受阻、延遲成功' },
+      { id: 20, name: 'XX 審判 (Judgement)', up: '覺醒召喚、過去總結、獲得寬恕、人生躍升', rev: '自我批判、猶豫錯過時機、執著悔恨、拒絕覺醒' },
+      { id: 21, name: 'XXI 世界 (The World)', up: '圓滿達成、整合完成、邁向新階段、和諧統一', rev: '尚差臨門一腳、缺乏收尾、停留在舒適圈' }
+    ];
+
+    const MINOR_SUITS = [
+      { key: '權杖 (Wands)', el: '火元素 · 行動與熱情', ranks: [
+        ['王牌 (Ace)', '新行動的火花、靈感爆發、充滿幹勁', '計畫延遲、缺乏動力、三分鐘熱度'],
+        ['二 (2)', '遠見規劃、站在高處抉擇、跨出舒適圈', '猶豫不決、害怕未知、格局受限'],
+        ['三 (3)', '拓展版圖、等待成果回報、遠方契機', '進度受阻、期望落空、缺乏協調'],
+        ['四 (4)', '階段性慶祝、穩定和諧、家園歸屬感', '短暫不安、缺乏支持、儀式感缺失'],
+        ['五 (5)', '良性競爭、意見分歧、磨合中的成長', '無謂內耗、惡性爭執、逃避衝突'],
+        ['六 (6)', '公開勝利、獲得肯定、自信凱旋', '驕傲自滿、期待落空、私下挫折'],
+        ['七 (7)', '堅守立場、以一敵多、捍衛信念', '節節敗退、過度防禦、壓力過大'],
+        ['八 (8)', '迅速推進、好消息傳來、行動加速', '進度延宕、訊息混亂、急躁出錯'],
+        ['九 (9)', '堅持到底、歷經考驗後的警覺與韌性', '疲憊不堪、過度多疑、放棄防線'],
+        ['十 (10)', '責任過重、獨自扛起一切、接近終點', '學會放手、壓力崩潰、委派分擔'],
+        ['侍者 (Page)', '熱情探索、新消息、勇敢嘗試新事物', '衝動幼稚、半途而廢、消息延誤'],
+        ['騎士 (Knight)', '全速前進、熱情奔放、冒險精神', '魯莽行事、缺乏耐心、半途轉向'],
+        ['皇后 (Queen)', '自信魅力、溫暖鼓舞、獨立果斷', '情緒化、嫉妒心強、過度強勢'],
+        ['國王 (King)', '遠見領袖、開創格局、成熟掌控全局', '專斷獨行、暴躁易怒、過度控制']
+      ]},
+      { key: '聖杯 (Cups)', el: '水元素 · 情感與直覺', ranks: [
+        ['王牌 (Ace)', '愛與情感的湧現、心靈滋養、新關係萌芽', '情感封閉、情緒空虛、壓抑感受'],
+        ['二 (2)', '彼此吸引、平等夥伴關係、心靈共鳴', '關係失衡、誤解隔閡、單方面付出'],
+        ['三 (3)', '歡聚慶祝、友誼支持、分享喜悅', '社交疲乏、表面應酬、團體不和'],
+        ['四 (4)', '內省觀望、對現狀冷感、忽略眼前的機會', '重新打開心扉、走出倦怠、把握新契機'],
+        ['五 (5)', '失落悲傷、聚焦於失去之物、忽略身旁仍在的希望', '走出傷痛、接納現實、重新轉身向前'],
+        ['六 (6)', '美好回憶、單純善意、舊友重逢或懷舊', '沉溺過去、拒絕成長、不切實際'],
+        ['七 (7)', '想像豐富、面對多重選擇、浪漫憧憬', '看清幻象、務實聚焦、做出明確決定'],
+        ['八 (8)', '勇敢轉身離開、追尋更高層次的意義', '猶豫不捨、逃避問題、停留在消耗中'],
+        ['九 (9)', '願望成真、內心滿足、享受當下豐盛', '過度放縱、表面滿足、內心仍有空缺'],
+        ['十 (10)', '家庭和樂、情感圓滿、長久的幸福歸宿', '關係裂痕、價值觀衝突、表面和諧'],
+        ['侍者 (Page)', '溫柔好奇、感性訊息、藝術與直覺靈感', '情緒敏感、逃避現實、不成熟依賴'],
+        ['騎士 (Knight)', '浪漫邀約、追隨內心理想、溫柔體貼', '不切實際、情緒反覆、逃避承諾'],
+        ['皇后 (Queen)', '深厚同理心、溫柔包容、直覺敏銳', '情緒氾濫、過度犧牲、界線模糊'],
+        ['國王 (King)', '情緒穩定成熟、慈悲智慧、冷靜包容', '冷漠疏離、壓抑情感、情緒操縱']
+      ]},
+      { key: '寶劍 (Swords)', el: '風元素 · 思維與溝通', ranks: [
+        ['王牌 (Ace)', '思緒清晰、突破迷霧、理智決斷、新觀點', '思緒混亂、溝通受阻、武斷傷人'],
+        ['二 (2)', '理性權衡、暫時僵持、閉目傾聽內心', '打破僵局、被迫抉擇、資訊超載'],
+        ['三 (3)', '心碎刺痛、看清殘酷真相、情緒釋放', '傷痛癒合、原諒釋懷、壓抑悲傷'],
+        ['四 (4)', '休養生息、暫停思考、靜心恢復能量', '過度勞累、被迫停工、焦躁無法休息'],
+        ['五 (5)', '贏了爭執卻輸了關係、利益衝突、防備心', '化干戈為玉帛、放下勝負欲、反省自我'],
+        ['六 (6)', '療癒過渡期、離開風暴前往平靜彼岸', '困在原地、舊傷未癒、抗拒前進'],
+        ['七 (7)', '策略思維、獨立行事、暗中規劃避開正面衝突', '真相曝光、計畫失算、誠實面對自己'],
+        ['八 (8)', '自我設限、心理恐懼困住行動、看不見出口', '解開思想束縛、重獲視角、走出困境'],
+        ['九 (9)', '深夜焦慮、過度擔憂、精神壓力', '釋放焦慮、尋求協助、發現擔憂只是幻象'],
+        ['十 (10)', '徹底結束、黎明前最深的低谷、不再惡化', '觸底反彈、痛苦過去、重新站起'],
+        ['侍者 (Page)', '好奇求知、敏銳觀察、坦率直言、新資訊', '言語尖刻、八卦是非、思慮不周'],
+        ['騎士 (Knight)', '果斷行動、思維敏捷、直奔真相', '衝動魯莽、言詞傷人、缺乏耐心'],
+        ['皇后 (Queen)', '獨立清醒、客觀公正、幽默犀利', '冷酷苛刻、過度批判、孤芳自賞'],
+        ['國王 (King)', '專業權威、邏輯嚴密、公正不阿', '冷血無情、過度理智、言語霸道']
+      ]},
+      { key: '錢幣 (Pentacles)', el: '土元素 · 物質與務實', ranks: [
+        ['王牌 (Ace)', '務實新機會、財富種子、健康與事業起點', '錯失良機、財務規劃不周、延遲收穫'],
+        ['二 (2)', '靈活調度、兼顧多重任務、動態平衡', '手忙腳亂、財務失衡、過度承擔'],
+        ['三 (3)', '團隊合作、專業技能展現、穩步建設', '溝通不順、各自為政、品質打折'],
+        ['四 (4)', '穩固積蓄、保守理財、重視安全感', '過度守財、害怕失去、吝嗇封閉'],
+        ['五 (5)', '物質或心靈匱乏感、孤立無援、考驗期', '度過難關、接受外界援助、資源回流'],
+        ['六 (6)', '慷慨分享、資源流動、貴人相助與公平回饋', '施受失衡、附帶條件的幫助、財務糾紛'],
+        ['七 (7)', '耐心耕耘、評估長期投資、等待果實成熟', '急功近利、回報不如預期、重新調整方向'],
+        ['八 (8)', '專注匠心、精進技藝、踏實累積成果', '敷衍了事、缺乏熱情、陷入機械重複'],
+        ['九 (9)', '獨立豐盛、享受努力成果、優雅富足', '過度依賴他人、表面風光、缺乏內在滿足'],
+        ['十 (10)', '長遠基業、家族傳承、物質與精神雙重富足', '財務波動、家庭觀念分歧、根基不穩'],
+        ['侍者 (Page)', '務實學習、新工作或理財計畫、踏實起步', '三心二意、缺乏執行力、好高騖遠'],
+        ['騎士 (Knight)', '穩健可靠、按部就班、堅持到底的執行者', '固執死板、進度緩慢、過度保守'],
+        ['皇后 (Queen)', '務實溫暖、善於理財照顧、營造舒適生活', '過度操心物質、忽略自我照顧、安全感不足'],
+        ['國王 (King)', '事業有成、穩健企業家精神、值得信賴的支柱', '唯利是圖、固執己見、工作狂傾向']
+      ]}
+    ];
+
+    const FULL_TAROT_DECK = [];
+    MAJOR_ARCANA.forEach(m => {
+      FULL_TAROT_DECK.push({
+        code: `M-${m.id}`,
+        name: m.name,
+        category: '大阿爾克那 · 靈魂原型',
+        up: m.up,
+        rev: m.rev
+      });
+    });
+    MINOR_SUITS.forEach(suit => {
+      suit.ranks.forEach((r, idx) => {
+        FULL_TAROT_DECK.push({
+          code: `${suit.key}-${idx + 1}`,
+          name: `${suit.key.split(' ')[0]}${r[0]}`,
+          category: `${suit.key} · ${suit.el}`,
+          up: r[1],
+          rev: r[2]
+        });
+      });
+    });
+
+    const TAISHO_SCRIPTURES = [
+      {
+        topic: 'attachment',
+        sutra: '《金剛般若波羅蜜經》',
+        taishoId: '大正藏第 8 冊 No. 0235（姚秦·鳩摩羅什譯）',
+        verse: '「應無所住而生其心。」……「一切有為法，如夢幻泡影，如露亦如電，應作如是觀。」',
+        proNote: '此經屬大乘般若部核心經典，直指「緣起性空」與「離相無住」。所謂「無所住」，並非消極冷漠，而是心不被順逆境界所黏著綁架，於無住中依然能生起清淨利他之心。',
+        plainNote: '我們之所以痛苦，往往是因為把暫時的情緒、成敗或別人的評價當成「永恆不變的真實」，死死抓著不放。試著把眼前的煩惱當作天邊飄過的雲或一場電影，看見它、經歷它，但不要讓心卡死在裡面。'
+      },
+      {
+        topic: 'attachment',
+        sutra: '《般若波羅蜜多心經》',
+        taishoId: '大正藏第 8 冊 No. 0251（唐·玄奘譯）',
+        verse: '「觀自在菩薩，行深般若波羅蜜多時，照見五蘊皆空，度一切苦厄。……心無罣礙，無罣礙故，無有恐怖，遠離顛倒夢想，究竟涅槃。」',
+        proNote: '《心經》以二百六十字總攝六百卷《大般若經》精髓。「照見五蘊皆空」乃透過深觀智慧，洞見色、受、想、行、識皆為因緣和合、無自性之流動現象，由此破除我執與恐怖。',
+        plainNote: '恐懼與焦慮來自於內心的「罣礙」（牽掛與執念）。當你覺得快被壓力淹沒時，試著退後一步當一個觀察者，看看自己現在的念頭與情緒，它們只是一連串條件湊在一起的暫時反應，並不是真正的你。'
+      },
+      {
+        topic: 'karma',
+        sutra: '《妙法蓮華經·方便品第二》',
+        taishoId: '大正藏第 9 冊 No. 0262（姚秦·鳩摩羅什譯）',
+        verse: '「諸法從本來，常自寂滅相。」……「是法住法位，世間相常住。」',
+        proNote: '《法華經》開權顯實，揭示「十如是」與諸法實相。世間萬象雖生滅無常，然每一當下皆是法性全體之顯現，煩惱即菩提，不必離世間而別求涅槃。',
+        plainNote: '人生的高低起伏都有它當下的位置與意義。不需要等到「所有問題都消失」才允許自己快樂；就在你此刻所處的工作、家庭與日常瑣事之中，安分做好眼前這一步，本身就是最踏實的修行。'
+      },
+      {
+        topic: 'compassion',
+        sutra: '《維摩詰所說經·問疾品第五》',
+        taishoId: '大正藏第 14 冊 No. 0475（姚秦·鳩摩羅什譯）',
+        verse: '「從癡有愛，則我病生；以一切眾生病，是故我病；若一切眾生病滅，則我病滅。」',
+        proNote: '維摩詰居士以在家人身行菩薩道，示現大乘「同體大悲」精神。凡夫之病源於無明我愛，而覺者之悲憫則源自與眾生休戚與共之深度連結。',
+        plainNote: '很多關係裡的摩擦，是因為我們太過聚焦在「我受了多少委屈」。試著把視角稍微放大一點，理解對方也有他的局限與苦衷；當你生起一份體諒與慈悲時，最先獲得鬆綁與療癒的其實是你自己。'
+      },
+      {
+        topic: 'mind',
+        sutra: '《大方廣佛華嚴經·菩薩問明品第十》',
+        taishoId: '大正藏第 10 冊 No. 0279（唐·實叉難陀譯）',
+        verse: '「心如工畫師，能畫諸世間，五蘊悉從生，無法而不造。」',
+        proNote: '《華嚴經》闡明「三界唯心、萬法唯識」及「事事無礙」法界觀。心念如同高明畫師，一念覺悟則現清淨蓮華，一念迷執則現荊棘羅網。',
+        plainNote: '你用什麼樣的心態去看待世界，世界就會被你畫成什麼樣子。外面發生的事情我們未必能百分之百控制，但「下一秒要畫出什麼色彩」，畫筆始終握在你自己的手裡。'
+      }
+    ];
+
+    /**
+     * ============================================================================
+     * 7. 全域狀態管理與各模組渲染函式
+     * ============================================================================
+     */
+    let globalState = {
+      birthYear: 1999,
+      solarStr: '',
+      hourName: '',
+      genderStr: '',
+      lunar: null,
+      ziwei: null,
+      bazi: null,
+      liunianData: null,
+      qimen: null,
+      yuelao: null,
+      fengshui: null,
+      tarotDrawn: [],
+      currentScripture: null,
+      selectedPalaceZhi: null
+    };
+
+    const HOUR_LABELS = [
+      '早子時 (00:00-00:59)', '丑時 (01:00-02:59)', '寅時 (03:00-04:59)', '卯時 (05:00-06:59)',
+      '辰時 (07:00-08:59)', '巳時 (09:00-10:59)', '午時 (11:00-12:59)', '未時 (13:00-14:59)',
+      '申時 (15:00-16:59)', '酉時 (17:00-18:59)', '戌時 (19:00-20:59)', '亥時 (21:00-22:59)',
+      '晚子時 (23:00-23:59)'
+    ];
+
+    const BOARD_LAYOUT = [
+      5, 6, 7, 8,
+      4, 'CENTER', 9,
+      3, 10,
+      2, 1, 0, 11
+    ];
+
+    function initLiuNianYearSelector() {
+      const sel = document.getElementById('liunianYearSelect');
+      if (!sel || sel.options.length > 0) return;
+      const defaultYear = 2026;
+      for (let y = 2020; y <= 2036; y++) {
+        const g = TIAN_GAN[(y - 4) % 10];
+        const z = DI_ZHI[(y - 4) % 12];
+        const opt = document.createElement('option');
+        opt.value = String(y);
+        opt.textContent = `${y} ${g}${z}年${y === defaultYear ? '（當下重點）' : ''}`;
+        if (y === defaultYear) opt.selected = true;
+        sel.appendChild(opt);
+      }
+    }
+
+    function runAllCalculations() {
+      const dateVal = document.getElementById('birthDate').value;
+      if (!dateVal) return;
+
+      const [y, m, d] = dateVal.split('-').map(Number);
+      const rawHourSelectIdx = parseInt(document.getElementById('birthHour').value, 10);
+      const zhiHourIdx = rawHourSelectIdx === 12 ? 0 : rawHourSelectIdx;
+      const gender = document.getElementById('gender').value;
+      const leapMode = document.getElementById('leapMonthMode').value;
+      const ziDayMode = document.getElementById('baziZiDayMode').value;
+
+      const queryTimeInput = document.getElementById('queryTime').value;
+      const queryDateObj = queryTimeInput ? new Date(queryTimeInput) : new Date();
+
+      const lunar = solarToLunar(y, m, d);
+      const ziwei = calculateZiWei(lunar, zhiHourIdx, gender, leapMode);
+      const bazi = calculateBaZi(y, m, d, rawHourSelectIdx, gender, ziDayMode);
+      const qimen = calculateQiMen(queryDateObj);
+      const yuelao = calculateYueLao(lunar, bazi, ziwei);
+
+      const lichunTs = getSolarTermTimestamp(y, 2);
+      const hourMinutesMap = [
+        [0, 30], [2, 0], [4, 0], [6, 0], [8, 0], [10, 0],
+        [12, 0], [14, 0], [16, 0], [18, 0], [20, 0], [22, 0], [23, 30]
+      ];
+      const [hVal, mVal] = hourMinutesMap[rawHourSelectIdx];
+      const birthTs = Date.UTC(y, m - 1, d, hVal - 8, mVal);
+      const fengShuiYear = birthTs < lichunTs ? y - 1 : y;
+      const fengshui = calculateFengShui(fengShuiYear, gender);
+
+      globalState = {
+        ...globalState,
+        birthYear: y,
+        solarStr: `${y}年${String(m).padStart(2, '0')}月${String(d).padStart(2, '0')}日`,
+        hourName: HOUR_LABELS[rawHourSelectIdx],
+        genderStr: gender === 'M' ? '男命（乾造）' : '女命（坤造）',
+        lunar,
+        ziwei,
+        bazi,
+        qimen,
+        yuelao,
+        fengshui,
+        selectedPalaceZhi: ziwei.mingZhi
+      };
+
+      document.getElementById('lunarDisplayText').textContent =
+        `陽曆 ${globalState.solarStr} ➔ 農曆 ${lunar.fullStr} ${DI_ZHI[zhiHourIdx]}時`;
+      document.getElementById('jieqiDisplayText').textContent =
+        `節氣：${bazi.currentJieName} 後 ～ ${bazi.nextJieName} 前`;
+
+      renderZiWeiBoard();
+      renderZiWeiDeterministicMatrix();
+      renderZiWeiAnalysis();
+      renderQiMenBoard();
+      renderBaZiBoard();
+      renderBaZiAnalysis();
+      renderBaZiLiuNian();
+      renderYueLaoBoard();
+      renderFengShuiBoard();
+      if (!globalState.tarotDrawn.length) drawTarotCards();
+      if (!globalState.currentScripture) drawBuddhistScripture();
+    }
+
+    /**
+     * 渲染紫微斗數十二宮確定性工程命盤（放大字級與網格比例）
+     */
+    function renderZiWeiBoard() {
+      const board = document.getElementById('ziweiBoard');
+      const { ziwei, lunar, solarStr, hourName, selectedPalaceZhi } = globalState;
+      const { palaces, sihuaMap } = ziwei;
+
+      const relatedSet = new Set([
+        (selectedPalaceZhi + 6) % 12,
+        (selectedPalaceZhi + 4) % 12,
+        (selectedPalaceZhi + 8) % 12
+      ]);
+
+      let html = '';
+      BOARD_LAYOUT.forEach(cell => {
+        if (cell === 'CENTER') {
+          html += `
+            <div class="center-hub">
+              <div class="text-[#fbbf24] font-serif-tc font-bold text-base sm:text-xl tracking-wide mb-1.5">
+                ${ziwei.yinYangGender} · ${ziwei.bureauName}
+              </div>
+              <div class="text-xs sm:text-sm text-slate-200 space-y-1 leading-relaxed">
+                <div>陽曆：${solarStr}</div>
+                <div>農曆：${lunar.yearGanZhi}年 ${lunar.monthStr}${lunar.dayStr}</div>
+                <div>時辰：${hourName.split(' ')[0]} · ${ziwei.isForward ? '大限順行' : '大限逆行'}</div>
+                <div class="pt-1 text-[#38bdf8]">
+                  命主：<b>${ziwei.mingMaster}</b> ｜ 身主：<b>${ziwei.shenMaster}</b>
+                </div>
+                <div class="text-xs sm:text-[13px] text-[#d8b4fe] pt-0.5 leading-snug">
+                  生年四化：${ziwei.sihuaLocations.map(s => `${s.star}${s.type}(${s.palaceName})`).join(' ')}
+                </div>
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        const p = palaces[cell];
+        const isSelected = cell === selectedPalaceZhi;
+        const isRelated = !isSelected && relatedSet.has(cell);
+        const stateCls = isSelected ? 'palace-selected' : (isRelated ? 'palace-related' : '');
+
+        const renderMajor = (starObj) => {
+          const sh = sihuaMap[starObj.name];
+          const badge = sh ? `<span class="sihua-badge ${sh.cls}">${sh.type}</span>` : '';
+          const bCls = BRIGHTNESS_CLASS[starObj.brightness] || 'text-slate-400';
+          return `<span class="inline-flex items-center text-sm sm:text-base leading-snug mr-1.5 text-[#fde68a] font-bold">${starObj.name}<span class="text-[11px] sm:text-xs font-normal ml-0.5 ${bCls}">[${starObj.brightness}]</span>${badge}</span>`;
+        };
+
+        const renderMinor = (starName) => {
+          const sh = sihuaMap[starName];
+          const badge = sh ? `<span class="sihua-badge ${sh.cls}">${sh.type}</span>` : '';
+          const isSha = ['擎羊', '陀羅', '火星', '鈴星', '地空', '地劫'].includes(starName);
+          const colorCls = isSha ? 'text-[#fb7185]' : 'text-[#38bdf8]/95';
+          return `<span class="inline-flex items-center text-xs sm:text-[13px] leading-snug mr-1.5 ${colorCls}">${starName}${badge}</span>`;
+        };
+
+        const majorHtml = p.majorStars.length
+          ? p.majorStars.map(s => renderMajor(s)).join('')
+          : `<span class="text-xs sm:text-sm text-slate-500 italic">空宮</span>`;
+
+        const minorHtml = p.minorStars.map(s => renderMinor(s)).join('');
+
+        html += `
+          <div onclick="selectZiWeiPalace(${cell})" class="palace-cell ${stateCls}">
+            <div>
+              <div class="flex flex-wrap items-center gap-y-1">${majorHtml}</div>
+              <div class="flex flex-wrap items-center gap-y-1 mt-1">${minorHtml}</div>
+            </div>
+
+            <div class="border-t border-[#1e293b] pt-1.5 mt-2 space-y-0.5">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-1">
+                  <span class="text-[13px] sm:text-[15px] font-bold ${p.isMing ? 'text-[#fbbf24]' : 'text-[#f1f5f9]'}">
+                    ${p.palaceName}
+                  </span>
+                  ${p.isShen ? '<span class="text-[10px] sm:text-[11px] px-1.5 py-0.2 rounded bg-[#a855f7]/25 text-[#d8b4fe] border border-[#a855f7]/50 font-bold">身</span>' : ''}
+                </div>
+                <span class="text-[11px] sm:text-xs font-mono-code text-[#c084fc] font-semibold">${p.daxianRange}</span>
+              </div>
+              <div class="flex items-center justify-between text-[11px] sm:text-xs text-[#94a3b8] font-mono-code">
+                <span>大限歲數</span>
+                <span class="text-xs sm:text-[13px] text-slate-300 font-semibold">${p.stemName}${p.zhiName}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+
+      board.innerHTML = html;
+    }
+
+    function selectZiWeiPalace(zhiIdx) {
+      globalState.selectedPalaceZhi = zhiIdx;
+      renderZiWeiBoard();
+      renderZiWeiDeterministicMatrix();
+    }
+
+    /**
+     * 渲染紫微斗數確定性排盤參考數據總表
+     */
+    function renderZiWeiDeterministicMatrix() {
+      const { ziwei, selectedPalaceZhi } = globalState;
+      const selP = ziwei.palaces[selectedPalaceZhi];
+      const oppP = ziwei.palaces[(selectedPalaceZhi + 6) % 12];
+      const tri1P = ziwei.palaces[(selectedPalaceZhi + 4) % 12];
+      const tri2P = ziwei.palaces[(selectedPalaceZhi + 8) % 12];
+
+      const fmtStars = (p) => {
+        const m = p.majorStars.map(s => `${s.name}[${s.brightness}]`).join('、') || '空宮';
+        const min = p.minorStars.join('、') || '無';
+        return `<span class="text-[#fde68a] font-semibold">${m}</span> <span class="text-slate-400">｜ 輔煞：${min}</span>`;
+      };
+
+      const orderedPalaces = PALACE_NAMES.map(name => ziwei.palaces.find(p => p.palaceName === name));
+
+      document.getElementById('ziweiDeterministicMatrix').innerHTML = `
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+          <div class="bg-[#06080f] border border-[#1e293b] rounded-lg p-2.5">
+            <div class="text-[#94a3b8] text-[11px]">命宮 / 身宮落點</div>
+            <div class="font-bold text-[#fbbf24] mt-0.5">${ziwei.palaces[ziwei.mingZhi].stemName}${ziwei.palaces[ziwei.mingZhi].zhiName}命 · ${ziwei.palaces[ziwei.shenZhi].palaceName}(${ziwei.palaces[ziwei.shenZhi].zhiName})身</div>
+          </div>
+          <div class="bg-[#06080f] border border-[#1e293b] rounded-lg p-2.5">
+            <div class="text-[#94a3b8] text-[11px]">五行局與大限方向</div>
+            <div class="font-bold text-[#38bdf8] mt-0.5">${ziwei.yinYangGender} · ${ziwei.bureauName}（${ziwei.isForward ? '順行' : '逆行'}）</div>
+          </div>
+          <div class="bg-[#06080f] border border-[#1e293b] rounded-lg p-2.5">
+            <div class="text-[#94a3b8] text-[11px]">命主 / 身主星曜</div>
+            <div class="font-bold text-[#d8b4fe] mt-0.5">命主【${ziwei.mingMaster}】 / 身主【${ziwei.shenMaster}】</div>
+          </div>
+          <div class="bg-[#06080f] border border-[#1e293b] rounded-lg p-2.5">
+            <div class="text-[#94a3b8] text-[11px]">生年四化飛星落宮</div>
+            <div class="font-bold text-slate-200 mt-0.5 text-[11px]">${ziwei.sihuaLocations.map(s => `${s.star}${s.type}→${s.palaceName}`).join(' · ')}</div>
+          </div>
+        </div>
+
+        <div class="bg-[#06080f] border border-[#38bdf8]/35 rounded-lg p-3 space-y-1.5 text-xs">
+          <div class="font-bold text-[#38bdf8] flex items-center justify-between">
+            <span>🎯 當前選中焦點：【${selP.palaceName}（${selP.stemName}${selP.zhiName} · 大限 ${selP.daxianRange}歲）】三方四正聯動數據</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1 text-[11px] sm:text-xs">
+            <div><span class="text-[#fbbf24] font-bold">● 本宮（${selP.palaceName}·${selP.zhiName}）：</span>${fmtStars(selP)}</div>
+            <div><span class="text-[#38bdf8] font-bold">● 對宮（${oppP.palaceName}·${oppP.zhiName}）：</span>${fmtStars(oppP)}</div>
+            <div><span class="text-[#a855f7] font-bold">● 三合（${tri1P.palaceName}·${tri1P.zhiName}）：</span>${fmtStars(tri1P)}</div>
+            <div><span class="text-[#a855f7] font-bold">● 三合（${tri2P.palaceName}·${tri2P.zhiName}）：</span>${fmtStars(tri2P)}</div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-xs">
+          ${orderedPalaces.map(p => `
+            <div onclick="selectZiWeiPalace(${p.zhiIdx})" class="bg-[#06080f] hover:bg-[#131c33] border ${p.zhiIdx === selectedPalaceZhi ? 'border-[#f59e0b]' : 'border-[#1e293b]'} rounded-lg p-2 cursor-pointer transition">
+              <div class="flex items-center justify-between border-b border-[#1e293b] pb-1 mb-1">
+                <span class="font-bold ${p.isMing ? 'text-[#fbbf24]' : 'text-[#f1f5f9]'}">${p.palaceName}${p.isShen ? '[身]' : ''} (${p.stemName}${p.zhiName})</span>
+                <span class="font-mono-code text-[11px] text-[#c084fc]">大限 ${p.daxianRange}</span>
+              </div>
+              <div class="text-[11px] leading-snug">
+                <div>主星：<span class="text-[#fde68a]">${p.majorStars.map(s => `${s.name}[${s.brightness}]`).join('、') || '空宮'}</span></div>
+                <div class="text-[#94a3b8] mt-0.5">輔煞：${p.minorStars.join('、') || '無'}</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function renderZiWeiAnalysis() {
+      const { ziwei, lunar } = globalState;
+      const mingP = ziwei.palaces[ziwei.mingZhi];
+      const oppP = ziwei.palaces[(ziwei.mingZhi + 6) % 12];
+      const wealthP = ziwei.palaces[(ziwei.mingZhi + 4) % 12];
+      const careerP = ziwei.palaces[(ziwei.mingZhi + 8) % 12];
+
+      const fmtList = (arr) => arr.map(s => `${s.name}[${s.brightness}]`).join('、');
+      const mingStarsStr = mingP.majorStars.length ? fmtList(mingP.majorStars) : `命無正曜（借對宮遷移宮：${fmtList(oppP.majorStars)}）`;
+      const [lu, quan, ke, ji] = ziwei.sihuaLocations;
+
+      document.getElementById('ziweiProAnalysis').innerHTML = `
+        <p><strong class="text-[#f1f5f9]">1. 排盤口徑與命身局數：</strong>${ziwei.leapAppliedNote}。命宮坐落<span class="text-[#fbbf24]">【${mingP.stemName}${mingP.zhiName}】</span>，五行納音定為<span class="text-[#38bdf8]">【${ziwei.bureauName}】</span>；身宮落於<span class="text-[#d8b4fe]">【${ziwei.palaces[ziwei.shenZhi].palaceName}（${ziwei.palaces[ziwei.shenZhi].zhiName}）】</span>。</p>
+        <p><strong class="text-[#f1f5f9]">2. 三方四正主星與亮度：</strong>本命宮主星為<span class="text-[#fde68a]">【${mingStarsStr}】</span>；財帛宮（${wealthP.zhiName}）見【${fmtList(wealthP.majorStars) || '空宮'}】，官祿宮（${careerP.zhiName}）見【${fmtList(careerP.majorStars) || '空宮'}】，遷移宮（${oppP.zhiName}）見【${fmtList(oppP.majorStars) || '空宮'}】。</p>
+        <p><strong class="text-[#f1f5f9]">3. 生年四化能量流向（${TIAN_GAN[lunar.yearGanIdx]}干）：</strong>化祿在<span class="text-[#67e8f9]">${lu.star}（${lu.palaceName}）</span>、化權在<span class="text-[#fcd34d]">${quan.star}（${quan.palaceName}）</span>、化科在<span class="text-[#d8b4fe]">${ke.star}（${ke.palaceName}）</span>、化忌在<span class="text-[#fda4af]">${ji.star}（${ji.palaceName}）</span>。</p>
+      `;
+
+      document.getElementById('ziweiPlainAnalysis').innerHTML = `
+        <p><strong class="text-[#f1f5f9]">● 你的核心性格與星曜能量強度：</strong>命宮主星代表你面對世界的第一反應，星曜後面的<span class="text-[#fbbf24]">[廟][旺]</span>代表星曜能量飽滿、優點容易發揮；<span class="text-[#fb7185]">[陷]</span>則代表需要多花心力磨練調整。</p>
+        <p><strong class="text-[#f1f5f9]">● 順風資源與人生執著課題：</strong><span class="text-[#67e8f9]">【${lu.star}化祿在${lu.palaceName}】</span>是你天生最有福氣與順遂的領域；而<span class="text-[#fda4af]">【${ji.star}化忌在${ji.palaceName}】</span>則是你這輩子最在意、容易反覆投入心力的核心功課。</p>
+        <p><strong class="text-[#f1f5f9]">● 十年大限切換節奏：</strong>每格右下角標註的歲數區間（如 ${mingP.daxianRange}）就是你每十年的大限舞台，點擊任一宮位即可同步在下方總表查看該十年的完整星曜配置。</p>
+      `;
+    }
+
+    /**
+     * 渲染四柱八字盤面與解析（低綠化賽博配色）
+     */
+    function renderBaZiBoard() {
+      const { bazi } = globalState;
+      document.getElementById('baziDayMasterBadge').textContent =
+        `日主元神：${bazi.dayMaster}（屬${bazi.dayMasterEl}）· ${bazi.ziDayModeNote}`;
+
+      const elColors = {
+        '木': 'text-[#38bdf8]',
+        '火': 'text-[#fb7185]',
+        '土': 'text-[#fbbf24]',
+        '金': 'text-[#fde68a]',
+        '水': 'text-[#c084fc]'
+      };
+
+      const pillarsHtml = bazi.pillars.map(p => `
+        <div class="bg-[#06080f] border ${p.isDayMaster ? 'border-[#f59e0b]' : 'border-[#1e293b]'} rounded-xl p-2.5 sm:p-3 flex flex-col items-center text-center">
+          <span class="text-[11px] text-[#94a3b8] mb-1">${p.title}</span>
+          <span class="text-[11px] px-1.5 py-0.5 rounded bg-[#131c33] text-[#38bdf8] font-medium mb-2">
+            ${p.tenGod}
+          </span>
+          <div class="font-serif-tc text-2xl sm:text-3xl font-bold ${elColors[p.ganEl]}">
+            ${p.gan}
+          </div>
+          <div class="font-serif-tc text-2xl sm:text-3xl font-bold ${elColors[p.zhiEl]} mt-1">
+            ${p.zhi}
+          </div>
+          <div class="w-full border-t border-[#1e293b] mt-2.5 pt-2 space-y-1">
+            <div class="text-[10px] text-slate-500">地支藏干</div>
+            ${p.hidden.map(h => `
+              <div class="text-[11px] flex items-center justify-between px-1">
+                <span class="text-slate-300 font-medium">${h.gan}<span class="text-[9px] text-slate-500">(${h.role[0]})</span></span>
+                <span class="text-[#94a3b8] text-[10px]">${h.tenGod}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('');
+
+      document.getElementById('baziPillarsGrid').innerHTML = pillarsHtml;
+
+      document.getElementById('dayunStartSummary').textContent =
+        `${bazi.isForward ? '陽男陰女順行' : '陰男陽女逆行'} · 虛歲 ${bazi.startAge} 歲起運（西元 ${bazi.startSolarYear} 年交運）`;
+
+      document.getElementById('dayunGrid').innerHTML = bazi.dayunList.map(dy => `
+        <div class="bg-[#0d1323] border border-[#1e293b] rounded-lg p-2 text-center flex flex-col justify-between">
+          <div class="text-[10px] text-[#38bdf8] font-medium">${dy.tenGod}</div>
+          <div class="font-serif-tc text-base sm:text-lg font-bold text-[#f1f5f9] my-0.5">${dy.ganZhi}</div>
+          <div class="text-[10px] text-[#fbbf24] font-mono-code">${dy.ageFrom}歲</div>
+          <div class="text-[9px] text-[#94a3b8] font-mono-code">${dy.yearFrom}</div>
+        </div>
+      `).join('');
+
+      const elements = ['木', '火', '土', '金', '水'];
+      const missing = elements.filter(e => bazi.wuxingCount[e] === 0);
+      document.getElementById('wuxingSummaryText').textContent =
+        missing.length ? `原局明字缺：${missing.join('、')}` : '原局五行俱全';
+
+      document.getElementById('wuxingBars').innerHTML = elements.map(e => {
+        const count = bazi.wuxingCount[e];
+        const pct = Math.min(100, (count / 8) * 100);
+        return `
+          <div class="bg-[#0d1323] border border-[#1e293b] rounded-lg p-1.5">
+            <div class="font-bold ${elColors[e]}">${e} (${count})</div>
+            <div class="w-full h-1.5 bg-[#06080f] rounded-full mt-1 overflow-hidden">
+              <div class="h-full bg-gradient-to-r from-[#38bdf8] to-[#a855f7]" style="width: ${pct}%"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderBaZiAnalysis() {
+      const { bazi } = globalState;
+      const [yP, mP, dP, hP] = bazi.pillars;
+      const monthMainGod = mP.hidden[0].tenGod;
+      const currentYear = 2026;
+      const activeDayun = bazi.dayunList.find((d, idx) => {
+        const nextY = idx < bazi.dayunList.length - 1 ? bazi.dayunList[idx + 1].yearFrom : d.yearFrom + 10;
+        return currentYear >= d.yearFrom && currentYear < nextY;
+      }) || bazi.dayunList[0];
+
+      const dayMasterTraits = {
+        '甲': '參天大樹，正直有擔當、具開創力，重視原則與成長空間。',
+        '乙': '花草藤蔓，身段柔軟、適應力極強，善於協調與以柔克剛。',
+        '丙': '太陽之火，熱情大方、光明磊落，具有感染力與舞台魅力。',
+        '丁': '燈燭星火，心思細膩、洞察力強，重感情且具專注鑽研精神。',
+        '戊': '高山厚土，沉穩踏實、重信守諾，包容力強且抗壓性高。',
+        '己': '田園濕土，溫和務實、多才多藝，善於規劃與照顧他人。',
+        '庚': '斧鉞剛金，果斷銳利、講義氣重效率，執行力與改革心強。',
+        '辛': '珠玉首飾，自尊心強、審美敏銳，氣質出眾且注重細節質感。',
+        '壬': '江河大海，聰明機智、格局開闊，善於變通與資源流動。',
+        '癸': '雨露甘霖，溫潤內斂、想像力豐富，具高度共情與直覺力。'
+      };
+
+      document.getElementById('baziProAnalysis').innerHTML = `
+        <p><strong class="text-[#f1f5f9]">1. 四柱乾坤全盤：</strong><span class="text-[#fbbf24] font-mono-code">${yP.gan}${yP.zhi}（年） · ${mP.gan}${mP.zhi}（月） · ${dP.gan}${dP.zhi}（日） · ${hP.gan}${hP.zhi}（時）</span>。</p>
+        <p><strong class="text-[#f1f5f9]">2. 月令提綱與格局氣勢：</strong>日主為<span class="text-[#38bdf8]">【${bazi.dayMaster}${bazi.dayMasterEl}】</span>，生於【${mP.zhi}】月（${bazi.currentJieName}節氣後），月令地支本氣為【${mP.hidden[0].gan}】，透出十神為<span class="text-[#fbbf24]">【${monthMainGod}】</span>。</p>
+        <p><strong class="text-[#f1f5f9]">3. 當前所行大運（${currentYear}年）：</strong>正行<span class="text-[#d8b4fe]">【${activeDayun.ganZhi}大運（${activeDayun.ageFrom}～${activeDayun.ageFrom + 9}歲）】</span>，大運天干十神為【${activeDayun.tenGod}】、地支本氣為【${activeDayun.zhiTenGod}】。</p>
+      `;
+
+      document.getElementById('baziPlainAnalysis').innerHTML = `
+        <p><strong class="text-[#f1f5f9]">● 你是什麼樣的核心人格：</strong>在八字裡，「日柱天干」就是你自己。你是<span class="text-[#38bdf8]">【${bazi.dayMaster}${bazi.dayMasterEl}】</span>命人，特質就像：${dayMasterTraits[bazi.dayMaster]}</p>
+        <p><strong class="text-[#f1f5f9]">● 你目前的人生十年大運主題：</strong>大運每十年換一個舞台背景，你現階段正走在<span class="text-[#fbbf24]">【${activeDayun.ganZhi}大運（${activeDayun.tenGod}運）】</span>，可切換至旁邊的「八字流年」分頁查看工作、財運、愛情與大運交會的詳細指引。</p>
+      `;
+    }
+
+    /**
+     * ============================================================================
+     * 8. 八字流年精算與四大維度深度剖析（工作・財運・愛情・大運方向）
+     * ============================================================================
+     */
+    const ZHI_CLASH_MAP = {
+      '子': '午', '午': '子', '丑': '未', '未': '丑',
+      '寅': '申', '申': '寅', '卯': '酉', '酉': '卯',
+      '辰': '戌', '戌': '辰', '巳': '亥', '亥': '巳'
+    };
+    const ZHI_COMBINE_MAP = {
+      '子': '丑', '丑': '子', '寅': '亥', '亥': '寅',
+      '卯': '戌', '戌': '卯', '辰': '酉', '酉': '辰',
+      '巳': '申', '申': '巳', '午': '未', '未': '午'
+    };
+    const ZHI_HARM_MAP = {
+      '子': '未', '未': '子', '丑': '午', '午': '丑',
+      '寅': '巳', '巳': '寅', '卯': '辰', '辰': '卯',
+      '申': '亥', '亥': '申', '酉': '戌', '戌': '酉'
+    };
+
+    function renderBaZiLiuNian() {
+      const { bazi, birthYear } = globalState;
+      if (!bazi) return;
+
+      const sel = document.getElementById('liunianYearSelect');
+      const targetYear = sel ? parseInt(sel.value, 10) : 2026;
+      const lnGanIdx = (targetYear - 4) % 10;
+      const lnZhiIdx = (targetYear - 4) % 12;
+      const lnGan = TIAN_GAN[lnGanIdx];
+      const lnZhi = DI_ZHI[lnZhiIdx];
+      const lnGanZhi = lnGan + lnZhi;
+      const lnTenGod = getTenGod(bazi.dayGanIdx, lnGan);
+      const lnHidden = ZHI_HIDDEN_STEMS[lnZhi].map((hGan, idx) => ({
+        gan: hGan,
+        role: idx === 0 ? '本氣' : (idx === 1 ? '中氣' : '餘氣'),
+        tenGod: getTenGod(bazi.dayGanIdx, hGan)
+      }));
+      const lnZhiMainGod = lnHidden[0].tenGod;
+      const nominalAge = targetYear - birthYear + 1;
+
+      // 找出對應此流年的十年大運
+      let activeDayun = bazi.dayunList[0];
+      for (let i = 0; i < bazi.dayunList.length; i++) {
+        const cur = bazi.dayunList[i];
+        const nextY = i < bazi.dayunList.length - 1 ? bazi.dayunList[i + 1].yearFrom : cur.yearFrom + 10;
+        if (targetYear >= cur.yearFrom && targetYear < nextY) {
+          activeDayun = cur;
+          break;
+        }
+      }
+      if (targetYear < bazi.dayunList[0].yearFrom) {
+        activeDayun = {
+          gan: bazi.pillars[1].gan,
+          zhi: bazi.pillars[1].zhi,
+          ganZhi: bazi.pillars[1].gan + bazi.pillars[1].zhi,
+          ganEl: bazi.pillars[1].ganEl,
+          zhiEl: bazi.pillars[1].zhiEl,
+          tenGod: bazi.pillars[1].tenGod + '(童限月柱)',
+          zhiTenGod: bazi.pillars[1].hidden[0].tenGod,
+          hidden: bazi.pillars[1].hidden,
+          ageFrom: 1
+        };
+      }
+
+      const elColors = {
+        '木': 'text-[#38bdf8]',
+        '火': 'text-[#fb7185]',
+        '土': 'text-[#fbbf24]',
+        '金': 'text-[#fde68a]',
+        '水': 'text-[#c084fc]'
+      };
+
+      // 1. 渲染三層疊加矩陣（流年 + 大運 + 原局四柱）
+      const overlayItems = [
+        {
+          tag: `${targetYear} 流年（虛歲${nominalAge}）`,
+          badgeCls: 'bg-[#ec4899]/20 text-[#f472b6] border border-[#ec4899]/40',
+          borderCls: 'border-[#ec4899]',
+          tenGod: lnTenGod,
+          gan: lnGan,
+          zhi: lnZhi,
+          ganEl: WUXING_MAP[lnGan],
+          zhiEl: WUXING_MAP[lnZhi],
+          hidden: lnHidden
+        },
+        {
+          tag: `當前大運（${activeDayun.ageFrom}歲起）`,
+          badgeCls: 'bg-[#a855f7]/20 text-[#d8b4fe] border border-[#a855f7]/40',
+          borderCls: 'border-[#a855f7]',
+          tenGod: activeDayun.tenGod,
+          gan: activeDayun.gan,
+          zhi: activeDayun.zhi,
+          ganEl: activeDayun.ganEl,
+          zhiEl: activeDayun.zhiEl,
+          hidden: activeDayun.hidden
+        },
+        ...bazi.pillars.map(p => ({
+          tag: `原局 · ${p.title}`,
+          badgeCls: p.isDayMaster ? 'bg-[#f59e0b]/20 text-[#fbbf24] border border-[#f59e0b]/40' : 'bg-[#131c33] text-[#38bdf8]',
+          borderCls: p.isDayMaster ? 'border-[#f59e0b]' : 'border-[#1e293b]',
+          tenGod: p.tenGod,
+          gan: p.gan,
+          zhi: p.zhi,
+          ganEl: p.ganEl,
+          zhiEl: p.zhiEl,
+          hidden: p.hidden
+        }))
+      ];
+
+      document.getElementById('liunianOverlayGrid').innerHTML = overlayItems.map(item => `
+        <div class="bg-[#06080f] border ${item.borderCls} rounded-xl p-2.5 flex flex-col items-center text-center">
+          <span class="text-[10px] text-[#94a3b8] mb-1">${item.tag}</span>
+          <span class="text-[11px] px-1.5 py-0.5 rounded ${item.badgeCls} font-bold mb-1.5">
+            ${item.tenGod}
+          </span>
+          <div class="font-serif-tc text-2xl font-bold ${elColors[item.ganEl]}">${item.gan}</div>
+          <div class="font-serif-tc text-2xl font-bold ${elColors[item.zhiEl]} mt-0.5">${item.zhi}</div>
+          <div class="w-full border-t border-[#1e293b] mt-2 pt-1.5 space-y-0.5">
+            ${item.hidden.map(h => `
+              <div class="text-[10px] flex items-center justify-between px-0.5">
+                <span class="text-slate-300">${h.gan}</span>
+                <span class="text-[#94a3b8]">${h.tenGod}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('');
+
+      // 2. 太歲神煞與地支刑沖合害檢測
+      const yearZhi = bazi.pillars[0].zhi;
+      const dayZhi = bazi.pillars[2].zhi;
+      const shenshaNotes = [];
+      if (lnZhi === yearZhi) shenshaNotes.push(`【值太歲（本命年）】流年地支與年支同為「${lnZhi}」，主環境變動、責任加重，宜穩紮穩打。`);
+      if (ZHI_CLASH_MAP[lnZhi] === yearZhi) shenshaNotes.push(`【沖太歲（歲破）】流年「${lnZhi}」正沖年支「${yearZhi}」，主遠行、搬遷、職場或生活圈重大變動。`);
+      if (ZHI_CLASH_MAP[lnZhi] === dayZhi) shenshaNotes.push(`【沖夫妻宮（日支受沖）】流年「${lnZhi}」正沖日支「${dayZhi}」，感情關係與個人內在狀態迎來調整與對話契機。`);
+      if (ZHI_COMBINE_MAP[lnZhi] === dayZhi) shenshaNotes.push(`【合入日支（天地鴛鴦/六合）】流年「${lnZhi}」與日支「${dayZhi}」六合，利合作結盟、感情升溫與貴人牽線。`);
+      if (ZHI_HARM_MAP[lnZhi] === yearZhi || ZHI_HARM_MAP[lnZhi] === dayZhi) shenshaNotes.push(`【害太歲（六害）】流年「${lnZhi}」與命局地支相害，需防人際溝通誤會、細節疏漏與情緒內耗。`);
+      if (shenshaNotes.length === 0) {
+        shenshaNotes.push(`【歲運平順氣場】${targetYear}（${lnGanZhi}）與原局年支「${yearZhi}」、日支「${dayZhi}」無直接沖克，屬於穩步累積、主動佈局之年。`);
+      }
+
+      // 天乙貴人檢測
+      const guirenMap = {
+        '甲': ['丑', '未'], '戊': ['丑', '未'], '庚': ['丑', '未'],
+        '乙': ['子', '申'], '己': ['子', '申'],
+        '丙': ['亥', '酉'], '丁': ['亥', '酉'],
+        '壬': ['卯', '巳'], '癸': ['卯', '巳'],
+        '辛': ['寅', '午']
+      };
+      if ((guirenMap[bazi.dayMaster] || []).includes(lnZhi)) {
+        shenshaNotes.push(`✨【天乙貴人照臨】流年地支「${lnZhi}」正是日主「${bazi.dayMaster}」的天乙貴人，關鍵時刻易獲長輩、主管或專業人士提攜。`);
+      }
+
+      document.getElementById('liunianShenshaBox').innerHTML = shenshaNotes.map(n => `<p class="mb-1">• ${n}</p>`).join('');
+
+      const interactions = [];
+      bazi.pillars.forEach(p => {
+        if (ZHI_CLASH_MAP[lnZhi] === p.zhi) interactions.push(`流年【${lnZhi}】沖【${p.title}${p.zhi}】（變動、突破舊局）`);
+        if (ZHI_COMBINE_MAP[lnZhi] === p.zhi) interactions.push(`流年【${lnZhi}】合【${p.title}${p.zhi}】（合作、牽絆與資源整合）`);
+        if (ZHI_HARM_MAP[lnZhi] === p.zhi) interactions.push(`流年【${lnZhi}】害【${p.title}${p.zhi}】（防瑣碎口舌與計畫延宕）`);
+      });
+      if (ZHI_CLASH_MAP[lnZhi] === activeDayun.zhi) {
+        interactions.push(`⚡【歲運相沖】流年【${lnZhi}】沖大運【${activeDayun.zhi}】，今年是此十年大運中最具轉折張力的關鍵年份！`);
+      }
+      if (lnGanZhi === activeDayun.ganZhi) {
+        interactions.push(`🔥【歲運並臨】流年與大運同為【${lnGanZhi}】，能量雙倍放大，吉凶事件顯化極為鮮明。`);
+      }
+
+      document.getElementById('liunianInteractionsBox').innerHTML = interactions.length
+        ? interactions.map(i => `<p class="mb-1">• ${i}</p>`).join('')
+        : `<p>• 流年地支【${lnZhi}】與原局四柱及大運【${activeDayun.ganZhi}】無劇烈沖刑，能量重點聚焦於天干【${lnTenGod}】與地支【${lnZhiMainGod}】之十神發揮。</p>`;
+
+      // 3. 十二流月節氣運勢（五虎遁起正月寅）
+      const yinMonthGanIdx = ((lnGanIdx % 5) * 2 + 2) % 10;
+      const monthSolarNames = ['2月立春', '3月驚蟄', '4月清明', '5月立夏', '6月芒種', '7月小暑', '8月立秋', '9月白露', '10月寒露', '11月立冬', '12月大雪', '次年1月小寒'];
+      const monthsHtml = Array.from({ length: 12 }, (_, mIdx) => {
+        const mGanIdx = (yinMonthGanIdx + mIdx) % 10;
+        const mZhiIdx = (2 + mIdx) % 12;
+        const mGan = TIAN_GAN[mGanIdx];
+        const mZhi = DI_ZHI[mZhiIdx];
+        const mTenGod = getTenGod(bazi.dayGanIdx, mGan);
+        return `
+          <div class="bg-[#0d1323] border border-[#1e293b] rounded-lg p-1.5 text-center">
+            <div class="text-[9px] text-[#94a3b8]">${monthSolarNames[mIdx]}</div>
+            <div class="font-serif-tc text-sm font-bold text-[#f1f5f9] my-0.5">${mGan}${mZhi}</div>
+            <div class="text-[10px] text-[#38bdf8] font-medium">${mTenGod}</div>
+          </div>
+        `;
+      }).join('');
+      document.getElementById('liunianMonthsGrid').innerHTML = monthsHtml;
+
+      // 4. 四大核心維度詳細剖析（工作、財運、愛情、大運方向）
+      document.getElementById('liunianThemeBadge').textContent =
+        `${targetYear} ${lnGanZhi}年 · 主軸十神：${lnTenGod}（天干） / ${lnZhiMainGod}（地支）`;
+
+      const careerGuideMap = {
+        '比肩': '今年職場強調「自主權與同儕協作」，適合獨立負責專案、建立個人專業品牌或與平輩夥伴合夥推進；但需注意團隊意見分歧與資源分配透明，避免陷入無謂競爭。',
+        '劫財': '職場競爭感與節奏明顯加快，容易遇到跨部門支援或臨時救火任務。適合拓展人脈圈、接洽外部資源，但重大合約與功勞歸屬務必白紙黑字確認。',
+        '食神': '創造力、企劃力與表達魅力大幅提升的年份！非常適合深耕專業技術、推出新作品、內容創作或品牌口碑經營，職場氛圍相對愉悅，宜發揮柔和但堅定的專業影響力。',
+        '傷官': '打破框架、求新求變的一年！對現有體制容易產生不滿與改革衝動，適合轉型、跨界嘗試或提出創新提案；但與主管溝通時需留意語氣圓融，避免因直言不諱引發摩擦。',
+        '偏財': '事業舞台向外擴張，適合業務開發、跨界談判、專案外包或多元化經營。行動力與商機敏銳度高，只要把握上半年節氣積極布局，容易開拓出新的事業版圖。',
+        '正財': '務實耕耘、按部就班累積資歷與業績的年份。工作內容偏向穩定執行與制度優化，只要踏實交付成果，容易獲得主管信任與穩健的考績回報。',
+        '七殺': '今年職場迎來高強度挑戰與突破契機！責任加重、任務具備開創性或危機處理性質，雖伴隨一定壓力，但只要扛住考驗，極有機會實現職級躍升或掌握實權。',
+        '正官': '升遷考績、組織認可與名聲提升的黃金窗口！適合爭取管理職位、考取專業證照或承擔核心制度專案，行事宜守規矩、重信用，自然水到渠成。',
+        '偏印': '思維轉向深度研究、策略幕僚或冷門專業領域。今年適合進修充電、規劃中長期轉型藍圖，但要避免過度鑽牛角尖或與團隊疏離。',
+        '正印': '貴人提攜與學習成長運勢極佳！容易獲得資深前輩、導師或制度面的庇蔭，適合考證進修、論文研究或穩固職場後方支援系統，心態更為從容穩定。'
+      };
+
+      const wealthGuideMap = {
+        '比肩': '財運呈現「合作生財、亦防分流」之象。正財收入需靠自身實力親力親為，不宜輕信親友口頭借貸或高風險跟風投資，保留充足緊急預備金最為穩妥。',
+        '劫財': '今年現金流波動較大，社交應酬、人情往來或突發性開支增加。理財策略應採「強迫儲蓄、資產配置保守化」，切忌與人合夥進行高槓桿投機。',
+        '食神': '屬於「以技生財、細水長流」的福氣財運！透過專業技能、創意作品或客戶口碑能帶來穩定現金流，偏財運亦帶有小確幸，適合投資自我技能提升。',
+        '傷官': '求財思路靈活、點子多，適合靠創新服務、顧問諮詢或副業變現開闢新財源；但情緒性消費與試錯成本也較高，投資前務必做好數據風控。',
+        '偏財': '流動財與商業機會旺盛之年！正職之外容易出現獎金分紅、專案抽成或投資獲利窗口，但偏財來得快去得也快，獲利時記得落袋為安、分批停利。',
+        '正財': '一分耕耘一分收穫的穩健聚財年！薪資報酬、長期合約與本業現金流為主要財源，適合執行定期定額理財、清償債務或規劃保值型資產。',
+        '七殺': '財富伴隨風險與魄力而來，適合開拓高毛利新市場或進行結構性資產重組；但切忌孤注一擲，須防因決策過急導致資金週轉壓力。',
+        '正官': '財運與事業地位緊密相連，升職加薪、制度性津貼與合法合規的穩健投資是最佳路徑，切勿觸碰灰色地帶或投機捷徑。',
+        '偏印': '財務重心宜放在「無形資產與知識變現」，實體大額投資回報週期較長，需防資訊不對稱造成的判斷失誤，大筆資金調度宜多方查證。',
+        '正印': '財運平穩安泰，長輩家族資源、不動產規劃或穩健型理財能帶來安全感。今年不易為錢財過度焦慮，適合做好長期財務體檢與風險保障。'
+      };
+
+      const loveGuideMap = {
+        '比肩': '感情中重視彼此的獨立空間與平等對話。單身者容易在興趣社團、運動或同儕聚會中認識談得來的對象；有伴者需注意別因各自忙碌而忽略情感溫度。',
+        '劫財': '感情互動較有主見與情緒張力，有伴者需多一份換位思考，避免因小事爭輸贏；單身者桃花選擇雖多，但要看清對方是否已有對象或是否真心投入。',
+        '食神': '浪漫溫柔、感情磁場極具吸引力的一年！單身者容易遇到氣質溫和、懂得照顧情緒的對象；有伴者適合安排旅行、美食約會，重燃戀愛甜蜜感。',
+        '傷官': '對伴侶的靈魂契合度與精神交流要求變高，容易挑剔對方的細節表現。單身者有機會展開一段打破常規的心動戀情；有伴者宜把批判轉化為溫柔表達需求。',
+        '偏財': '男命桃花機緣大增、社交活躍；女命則在人際互動中展現大方魅力。單身者容易在工作往來或旅途中邂逅熱情對象；有伴者需保持健康的異性社交邊界。',
+        '正財': '感情走向務實穩定與長遠承諾！男命正緣星透出，單身者極易遇見適合步入婚姻的對象；有伴者適合討論共同理財、買房或見家長等人生大事。',
+        '七殺': '女命感情宿命感與吸引力強烈，單身者容易遇見果斷有魄力、年齡或背景有反差的對象；有伴者則需留意相處中的強勢與壓迫感，學會柔軟溝通。',
+        '正官': '女命正緣桃花顯現之年！單身者容易透過長輩介紹、職場或正式場合結識穩重可靠的伴侶；有伴者感情關係更趨成熟安定，利於訂婚或步入禮堂。',
+        '偏印': '感情進入內省與觀察期，對伴侶的信任感較為敏感，容易在心裡默默打分數。單身者寧缺勿濫；有伴者宜坦誠說出內心不安，避免冷戰疏離。',
+        '正印': '感情充滿包容、安全感與心靈支持！單身者容易受到溫暖貼心、像家人般照顧自己的對象吸引；有伴者能從彼此身上獲得極大的情緒療癒與穩定力量。'
+      };
+
+      const isSameElementGroup = (WUXING_MAP[lnGan] === WUXING_MAP[activeDayun.gan]) || (WUXING_MAP[lnZhi] === WUXING_MAP[activeDayun.zhi]);
+      const dayunDirectionText = `
+        <p><strong class="text-[#f1f5f9]">1. 歲運雙軌結構：</strong>你目前正處於<span class="text-[#d8b4fe] font-bold">【${activeDayun.ganZhi}大運（${activeDayun.ageFrom}～${activeDayun.ageFrom + 9}歲 · ${activeDayun.tenGod}運）】</span>，今年流年為<span class="text-[#f472b6] font-bold">【${lnGanZhi}（${lnTenGod}年）】</span>。</p>
+        <p><strong class="text-[#f1f5f9]">2. 大運與流年共振方向：</strong>大運決定這十年的「大氣候與主舞台」，流年決定今年的「具體事件與觸發點」。${isSameElementGroup
+          ? `今年流年五行與大運氣場形成<span class="text-[#38bdf8] font-bold">「同頻共振強化」</span>，代表你這步大運的核心主題（${activeDayun.tenGod}）會在今年集中爆發與驗收，宜乘勢而上、大膽推進長期目標。`
+          : `今年流年（${lnTenGod}）與大運（${activeDayun.tenGod}）形成<span class="text-[#fbbf24] font-bold">「互補調候與階段轉折」</span>，在維持大運主軸的同時，今年特別需要借重「${lnTenGod}」的策略來打通關卡、調整步伐。`}</p>
+        <p><strong class="text-[#f1f5f9]">3. 年度行動總綱：</strong>上半年（立春至夏至）重在順應天干【${lnTenGod}】積極鋪陳人脈與專案；下半年（立秋至大寒）能量落實於地支【${lnZhiMainGod}】，宜收斂戰線、穩固成果並為下一階段蓄能。</p>
+      `;
+
+      document.getElementById('liunianFourDimensions').innerHTML = `
+        <div class="bg-[#0d1323] border border-[#38bdf8]/40 rounded-xl p-4 space-y-2">
+          <div class="flex items-center justify-between border-b border-[#1e293b] pb-2">
+            <h4 class="font-serif-tc text-sm sm:text-base font-bold text-[#38bdf8] flex items-center gap-1.5">
+              <span>💼</span> 工作事業（職場升遷與轉型節奏）
+            </h4>
+            <span class="text-[11px] font-mono-code text-[#38bdf8]">CAREER · ${lnTenGod}</span>
+          </div>
+          <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">${careerGuideMap[lnTenGod]}</p>
+          <p class="text-xs text-[#94a3b8] leading-relaxed pt-1">
+            <strong class="text-slate-200">地支落實關鍵（${lnZhi}藏${lnZhiMainGod}）：</strong>表面機會看天干【${lnTenGod}】，實際執行成果則取決於地支【${lnZhiMainGod}】的穩定度，建議將年度目標拆解為季度里程碑逐步推進。
+          </p>
+        </div>
+
+        <div class="bg-[#0d1323] border border-[#f59e0b]/40 rounded-xl p-4 space-y-2">
+          <div class="flex items-center justify-between border-b border-[#1e293b] pb-2">
+            <h4 class="font-serif-tc text-sm sm:text-base font-bold text-[#fbbf24] flex items-center gap-1.5">
+              <span>💰</span> 財運投資（正偏財流向與守財關鍵）
+            </h4>
+            <span class="text-[11px] font-mono-code text-[#fbbf24]">WEALTH · ${lnGanZhi}</span>
+          </div>
+          <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">${wealthGuideMap[lnTenGod]}</p>
+          <p class="text-xs text-[#94a3b8] leading-relaxed pt-1">
+            <strong class="text-slate-200">流年財務風控提示：</strong>留意農曆正月（寅月）與七月（申月）的資金調度節點，重大投資與大額合約建議避開與流年地支【${lnZhi}】相沖之月份（${ZHI_CLASH_MAP[lnZhi]}月）。
+          </p>
+        </div>
+
+        <div class="bg-[#0d1323] border border-[#ec4899]/40 rounded-xl p-4 space-y-2">
+          <div class="flex items-center justify-between border-b border-[#1e293b] pb-2">
+            <h4 class="font-serif-tc text-sm sm:text-base font-bold text-[#f472b6] flex items-center gap-1.5">
+              <span>💞</span> 愛情姻緣（桃花紅鸞感應與感情互動）
+            </h4>
+            <span class="text-[11px] font-mono-code text-[#f472b6]">ROMANCE · ${lnZhi}支</span>
+          </div>
+          <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">${loveGuideMap[lnTenGod]}</p>
+          <p class="text-xs text-[#94a3b8] leading-relaxed pt-1">
+            <strong class="text-slate-200">夫妻宮連動提醒：</strong>原局日支為【${dayZhi}】，今年流年地支【${lnZhi}】與日支呈現「${ZHI_CLASH_MAP[lnZhi] === dayZhi ? '相沖（需加強溝通包容）' : (ZHI_COMBINE_MAP[lnZhi] === dayZhi ? '六合（情感緊密連結）' : '平和互動')}」，保持真誠傾聽即能讓關係更進一步。
+          </p>
+        </div>
+
+        <div class="bg-[#0d1323] border border-[#a855f7]/45 rounded-xl p-4 space-y-2">
+          <div class="flex items-center justify-between border-b border-[#1e293b] pb-2">
+            <h4 class="font-serif-tc text-sm sm:text-base font-bold text-[#d8b4fe] flex items-center gap-1.5">
+              <span>🧭</span> 大運交會方向（十年大運與流年共振策略）
+            </h4>
+            <span class="text-[11px] font-mono-code text-[#d8b4fe]">DAYUN · ${activeDayun.ganZhi}</span>
+          </div>
+          <div class="text-xs sm:text-sm text-slate-300 leading-relaxed space-y-1.5">
+            ${dayunDirectionText}
+          </div>
+        </div>
+      `;
+
+      globalState.liunianData = {
+        targetYear,
+        lnGanZhi,
+        lnTenGod,
+        lnZhiMainGod,
+        nominalAge,
+        activeDayun,
+        shenshaNotes,
+        interactions
+      };
+    }
+
+    /**
+     * ============================================================================
+     * 9. 其餘模組渲染函式（奇門、月老、風水、塔羅、佛學）
+     * ============================================================================
+     */
+    function setNowForQimen() {
+      const now = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      const localIso = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+      document.getElementById('queryTime').value = localIso;
+      runAllCalculations();
+      showToast('⏱ 已更新為當下時刻重新起局');
+    }
+
+    function renderQiMenBoard() {
+      const { qimen } = globalState;
+      document.getElementById('qimenMetaInfo').textContent =
+        `局數：${qimen.dunText} ｜ 日柱：${qimen.dayGanZhi} ｜ 時柱：${qimen.hourGanZhi} ｜ 值符：${qimen.zhiFuStar} ｜ 值使：${qimen.zhiShiGate}`;
+
+      const ausGates = ['開門', '休門', '生門'];
+      const boardHtml = QIMEN_PALACES.map(p => {
+        const d = qimen.palaceData[p.num];
+        const isAus = ausGates.includes(d.gate);
+        const borderCls = d.isZhiFu
+          ? 'border-[#f59e0b] bg-[#f59e0b]/10'
+          : (d.isZhiShi ? 'border-[#38bdf8]/75 bg-[#38bdf8]/5' : 'border-[#1e293b] bg-[#06080f]');
+
+        return `
+          <div class="border ${borderCls} rounded-xl p-2.5 sm:p-3 flex flex-col justify-between min-h-[112px]">
+            <div class="flex items-center justify-between text-[11px]">
+              <span class="text-[#38bdf8] font-medium">${d.deity}</span>
+              <span class="text-[#94a3b8]">${p.trigram} ${p.dir}</span>
+            </div>
+            <div class="my-1.5 flex items-center justify-between">
+              <div>
+                <div class="text-xs sm:text-sm font-bold text-[#f1f5f9]">${d.star}</div>
+                <div class="text-xs sm:text-sm font-bold ${isAus ? 'text-[#c084fc]' : 'text-slate-300'}">${d.gate}</div>
+              </div>
+              <div class="text-right font-serif-tc">
+                <div class="text-sm sm:text-base font-bold text-[#fbbf24]">${d.tianStem} <span class="text-[10px] text-slate-500">天</span></div>
+                <div class="text-sm sm:text-base font-bold text-slate-300">${d.diStem} <span class="text-[10px] text-slate-500">地</span></div>
+              </div>
+            </div>
+            <div class="flex items-center justify-between border-t border-[#1e293b] pt-1 text-[10px] text-[#94a3b8]">
+              <span>${p.name}</span>
+              <div>
+                ${d.isZhiFu ? '<span class="px-1 rounded bg-[#f59e0b]/25 text-[#fbbf24] font-bold">值符</span>' : ''}
+                ${d.isZhiShi ? '<span class="px-1 rounded bg-[#38bdf8]/25 text-[#38bdf8] font-bold">值使</span>' : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('qimenBoard').innerHTML = boardHtml;
+
+      const fuP = QIMEN_PALACES.find(x => x.num === qimen.targetFuPalace);
+      const shiP = QIMEN_PALACES.find(x => x.num === qimen.zhiShiTargetPalace);
+
+      document.getElementById('qimenProAnalysis').innerHTML = `
+        <p><strong class="text-[#f1f5f9]">1. 排盤口徑與符使落宮：</strong>採「時家轉盤奇門・拆補法・中五寄坤二宮」，得<span class="text-[#38bdf8]">【${qimen.dunText}】</span>。大吉神<span class="text-[#fbbf24]">【值符·${qimen.zhiFuStar}】</span>飛臨<span class="text-[#fbbf24]">【${fuP.name}（${fuP.dir}）】</span>；執行之門<span class="text-[#d8b4fe]">【值使·${qimen.zhiShiGate}】</span>落於<span class="text-[#d8b4fe]">【${shiP.name}（${shiP.dir}）】</span>。</p>
+        <p><strong class="text-[#f1f5f9]">2. 日時主客用神：</strong>日柱【${qimen.dayGanZhi}】代表求測者本位（主），時柱【${qimen.hourGanZhi}】代表所問單一事件之發展結果（客）。</p>
+        <p><strong class="text-[#f1f5f9]">3. 三吉門方位：</strong>「開門（事業求職）、休門（貴人調養）、生門（求財置產）」為三吉門，可優先取用對應方位。</p>
+      `;
+
+      document.getElementById('qimenPlainAnalysis').innerHTML = `
+        <p><strong class="text-[#f1f5f9]">● 這件事情的大環境趨勢：</strong>「值符」代表這件事背後的貴人與最大靠山，目前落在<span class="text-[#fbbf24]">【${fuP.dir}方】</span>，往這個方向尋求資源或合作最容易獲得支持。</p>
+        <p><strong class="text-[#f1f5f9]">● 實際執行會遇到的狀況：</strong>「值使」代表具體辦事的過程與阻力，目前是<span class="text-[#38bdf8]">【${qimen.zhiShiGate}】</span>落在<span class="text-[#38bdf8]">【${shiP.dir}方】</span>。記得在上方輸入框寫下「單一具體問題」，再點擊複製貼給 AI 斷事會最精準！</p>
+      `;
+    }
+
+    function renderYueLaoBoard() {
+      const { yuelao } = globalState;
+      document.getElementById('yuelaoStarsGrid').innerHTML = `
+        <div class="bg-[#06080f] border border-[#1e293b] rounded-xl p-3">
+          <div class="text-xs text-[#94a3b8]">本命紅鸞 · 天喜星位</div>
+          <div class="font-serif-tc text-lg font-bold text-[#f472b6] mt-1">紅鸞在【${yuelao.hongLuanZhi}】｜天喜在【${yuelao.tianXiZhi}】</div>
+          <div class="text-[11px] text-[#94a3b8] mt-1">逢流年地支走到此二宮時，最易觸發正緣、訂婚或喜慶之事。</div>
+        </div>
+        <div class="bg-[#06080f] border border-[#1e293b] rounded-xl p-3">
+          <div class="text-xs text-[#94a3b8]">八字咸池（人緣桃花星）</div>
+          <div class="font-serif-tc text-lg font-bold text-[#38bdf8] mt-1">桃花位在【${yuelao.xianChiZhi}】</div>
+          <div class="text-[11px] text-[#94a3b8] mt-1">代表異性緣、社交魅力與浪漫吸引力之磁場方位。</div>
+        </div>
+        <div class="bg-[#06080f] border border-[#1e293b] rounded-xl p-3">
+          <div class="text-xs text-[#94a3b8]">紫微夫妻宮主星配置</div>
+          <div class="font-serif-tc text-base font-bold text-[#fde68a] mt-1">${yuelao.spousePalaceStemZhi} · ${yuelao.spouseStars}</div>
+          <div class="text-[11px] text-[#94a3b8] mt-1">反映你對理想伴侶的期待與親密關係相處模式。</div>
+        </div>
+      `;
+
+      document.getElementById('yuelaoProAnalysis').innerHTML = `
+        <p><strong class="text-[#f1f5f9]">1. 雙系統桃花交集：</strong>八字咸池桃花落於<span class="text-[#38bdf8]">【${yuelao.xianChiZhi}】</span>，命帶紅鸞在【${yuelao.hongLuanZhi}】、天喜在【${yuelao.tianXiZhi}】，主一生人際魅力佳，逢桃花歲運易有感情契機。</p>
+        <p><strong class="text-[#f1f5f9]">2. 紫微夫妻宮結構：</strong>夫妻宮坐落於<span class="text-[#fbbf24]">【${yuelao.spousePalaceStemZhi}】</span>，宮內主星為<span class="text-[#fde68a]">【${yuelao.spouseStars}】</span>，可與對宮官祿宮合參事業與感情之平衡。</p>
+      `;
+
+      document.getElementById('yuelaoPlainAnalysis').innerHTML = `
+        <p><strong class="text-[#f1f5f9]">● 你的感情吸引力與緣分節奏：</strong>你天生帶有【${yuelao.xianChiZhi}】桃花磁場，在熟悉的朋友圈或共同興趣場合裡特別容易散發魅力；當年份走到【${yuelao.hongLuanZhi}】或【${yuelao.tianXiZhi}】年時，是感情開花結果的黃金期。</p>
+        <p><strong class="text-[#f1f5f9]">● 給單身與有伴者的建議：</strong>上方點擊「誠心求取月老靈籤」可為你當下最在意的感情問題提供針對性指引。</p>
+      `;
+    }
+
+    function drawYueLaoStick() {
+      const stick = YUELAO_STICKS[Math.floor(Math.random() * YUELAO_STICKS.length)];
+      globalState.yuelao.currentStick = stick;
+      document.getElementById('stickNumberBadge').textContent = `月老靈籤 · ${stick.no}`;
+      document.getElementById('stickLevelBadge').textContent = stick.level;
+      document.getElementById('stickPoemText').textContent = `「${stick.poem}」`;
+      document.getElementById('stickMeaningText').textContent = `【籤意白話解】：${stick.desc}`;
+      showToast(`🎋 求得月老靈籤 ${stick.no}（${stick.level}）`);
+    }
+
+    function renderFengShuiBoard() {
+      const { fengshui } = globalState;
+      document.getElementById('fengshuiGroupBadge').textContent =
+        `本命卦：${fengshui.name}（五行屬${fengshui.element}）· ${fengshui.group}`;
+
+      const layoutOrder = [
+        { dir: '東南', trigram: '☴ 巽' },
+        { dir: '正南', trigram: '☲ 離' },
+        { dir: '西南', trigram: '☷ 坤' },
+        { dir: '正東', trigram: '☳ 震' },
+        { dir: 'CENTER' },
+        { dir: '正西', trigram: '☱ 兌' },
+        { dir: '東北', trigram: '☶ 艮' },
+        { dir: '正北', trigram: '☵ 坎' },
+        { dir: '西北', trigram: '☰ 乾' }
+      ];
+
+      document.getElementById('fengshuiBoard').innerHTML = layoutOrder.map(cell => {
+        if (cell.dir === 'CENTER') {
+          return `
+            <div class="border border-[#f59e0b]/50 bg-[#f59e0b]/10 rounded-xl p-2.5 flex flex-col items-center justify-center text-center">
+              <div class="text-xs text-[#94a3b8]">八宅命卦中宮</div>
+              <div class="font-serif-tc text-lg sm:text-xl font-bold text-[#fbbf24] my-0.5">${fengshui.name}</div>
+              <div class="text-xs font-bold text-[#38bdf8]">${fengshui.group}</div>
+              <div class="text-[10px] text-[#94a3b8] mt-1">${fengshui.mappedNote || '宜住' + fengshui.group + '之宅'}</div>
+            </div>
+          `;
+        }
+
+        const starLabel = fengshui.dirs[cell.dir];
+        const isGood = starLabel.includes('吉');
+        return `
+          <div class="border ${isGood ? 'border-[#38bdf8]/45 bg-[#38bdf8]/5' : 'border-[#ec4899]/35 bg-[#ec4899]/5'} rounded-xl p-2.5 sm:p-3 flex flex-col justify-between min-h-[95px]">
+            <div class="flex items-center justify-between text-xs text-[#94a3b8]">
+              <span class="font-bold text-[#f1f5f9]">${cell.dir}</span>
+              <span>${cell.trigram}</span>
+            </div>
+            <div class="font-serif-tc text-sm sm:text-base font-bold ${isGood ? 'text-[#38bdf8]' : 'text-[#f472b6]'} my-1">
+              ${starLabel}
+            </div>
+            <div class="text-[10px] text-[#94a3b8]">
+              ${isGood ? '宜設主臥、書桌、財位' : '宜作儲藏、衛浴或保持整潔'}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      const goodDirs = Object.entries(fengshui.dirs).filter(([, v]) => v.includes('吉'));
+      const badDirs = Object.entries(fengshui.dirs).filter(([, v]) => v.includes('凶'));
+
+      document.getElementById('fengshuiProAnalysis').innerHTML = `
+        <p><strong class="text-[#f1f5f9]">1. 本命卦公式推演：</strong>依出生年份（立春分界）與性別推算，本命卦為<span class="text-[#fbbf24]">【${fengshui.name}（五行屬${fengshui.element}）】</span>${fengshui.mappedNote}，屬於<span class="text-[#38bdf8]">【${fengshui.group}】</span>。</p>
+        <p><strong class="text-[#f1f5f9]">2. 四吉方位（生氣、天醫、延年、伏位）：</strong>${goodDirs.map(([d, s]) => `${d}【${s}】`).join('、')}。</p>
+        <p><strong class="text-[#f1f5f9]">3. 四凶方位（絕命、五鬼、六煞、禍害）：</strong>${badDirs.map(([d, s]) => `${d}【${s}】`).join('、')}。</p>
+      `;
+
+      const shengQiDir = goodDirs.find(([, s]) => s.includes('生氣'))[0];
+      const tianYiDir = goodDirs.find(([, s]) => s.includes('天醫'))[0];
+      const yanNianDir = goodDirs.find(([, s]) => s.includes('延年'))[0];
+
+      document.getElementById('fengshuiPlainAnalysis').innerHTML = `
+        <p><strong class="text-[#f1f5f9]">● 你的黃金旺運方位在哪裡：</strong>你是【${fengshui.group}】人，家中最旺事業與財運的「生氣位」在<span class="text-[#38bdf8] font-bold">【${shengQiDir}方】</span>，最適合放書桌、辦公桌或招財擺設；最旺健康與貴人的「天醫位」在<span class="text-[#38bdf8] font-bold">【${tianYiDir}方】</span>，最適合安放睡床床頭。</p>
+        <p><strong class="text-[#f1f5f9]">● 感情與家庭和諧位：</strong>「延年位」在<span class="text-[#fbbf24] font-bold">【${yanNianDir}方】</span>，保持此方位明亮通風，有助於伴侶關係穩定與人際和諧。</p>
+      `;
+    }
+
+    function drawTarotCards() {
+      const count = parseInt(document.getElementById('tarotSpreadSelect').value, 10);
+      const positionsMap = {
+        1: ['當下核心指引'],
+        3: ['過去根源', '現在處境', '未來趨勢'],
+        4: ['你的立場與狀態', '外在環境 / 對方態度', '核心阻礙或課題', '最終發展建議']
+      };
+      const posNames = positionsMap[count];
+
+      const deckCopy = [...FULL_TAROT_DECK];
+      for (let i = deckCopy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [deckCopy[i], deckCopy[j]] = [deckCopy[j], deckCopy[i]];
+      }
+
+      const drawn = deckCopy.slice(0, count).map((card, idx) => {
+        const isReversed = Math.random() < 0.42;
+        return {
+          position: posNames[idx],
+          ...card,
+          isReversed,
+          orientation: isReversed ? '逆位 (Reversed)' : '正位 (Upright)',
+          meaning: isReversed ? card.rev : card.up
+        };
+      });
+
+      globalState.tarotDrawn = drawn;
+
+      const gridCols = count === 1 ? 'grid-cols-1 max-w-md mx-auto' : (count === 4 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4' : 'grid-cols-1 sm:grid-cols-3');
+      const container = document.getElementById('tarotCardsDisplay');
+      container.className = `grid ${gridCols} gap-3`;
+
+      container.innerHTML = drawn.map(c => `
+        <div class="tarot-card-box bg-[#06080f] border ${c.isReversed ? 'border-[#f59e0b]/50' : 'border-[#38bdf8]/50'} rounded-xl p-3.5 flex flex-col justify-between space-y-2">
+          <div class="flex items-center justify-between text-xs">
+            <span class="px-2 py-0.5 rounded bg-[#131c33] text-[#fbbf24] font-bold">${c.position}</span>
+            <span class="${c.isReversed ? 'text-[#fbbf24]' : 'text-[#38bdf8]'} font-medium">${c.orientation}</span>
+          </div>
+          <div class="py-2 text-center border-y border-[#1e293b]">
+            <div class="inline-block text-2xl mb-1 ${c.isReversed ? 'tarot-reversed' : ''}">🃏</div>
+            <div class="font-serif-tc text-base font-bold text-[#fde68a]">${c.name}</div>
+            <div class="text-[11px] text-[#94a3b8] mt-0.5">${c.category}</div>
+          </div>
+          <div class="text-xs text-slate-300 leading-relaxed">
+            <span class="text-[#94a3b8]">牌義關鍵詞：</span>${c.meaning}
+          </div>
+        </div>
+      `).join('');
+
+      const majorCount = drawn.filter(c => c.category.includes('大阿爾克那')).length;
+      document.getElementById('tarotProAnalysis').innerHTML = `
+        <p><strong class="text-[#f1f5f9]">1. 牌陣能量結構：</strong>本次共抽取 ${count} 張牌，其中包含 <span class="text-[#38bdf8]">${majorCount} 張大阿爾克那</span>（代表靈魂層次的重大轉折與課題）與 <span class="text-[#a855f7]">${count - majorCount} 張小阿爾克那</span>（代表日常具體事件與心理細節）。</p>
+        <p><strong class="text-[#f1f5f9]">2. 逐張牌面解析：</strong>${drawn.map(c => `【${c.position}】抽得 ${c.name}（${c.orientation}），指向「${c.meaning}」`).join('；')}。</p>
+      `;
+
+      document.getElementById('tarotPlainAnalysis').innerHTML = `
+        <p><strong class="text-[#f1f5f9]">● 塔羅給你的核心提醒：</strong>牌陣中的第一張牌點出了事情的起點（${drawn[0].name}），而最後一張牌「${drawn[drawn.length - 1].name}（${drawn[drawn.length - 1].orientation}）」則是給你的行動方向：重點在於<span class="text-[#fde68a]">「${drawn[drawn.length - 1].meaning}」</span>。</p>
+        <p><strong class="text-[#f1f5f9]">● 如何獲得更精準的解讀：</strong>在上方輸入框寫下具體問題後再按一次「洗牌並抽牌」，接著點擊底部複製按鈕貼給 AI，就能獲得結合你具體問題的深度牌陣解析。</p>
+      `;
+    }
+
+    function drawBuddhistScripture() {
+      const topic = document.getElementById('buddhismTopicSelect').value;
+      const pool = topic === 'all'
+        ? TAISHO_SCRIPTURES
+        : TAISHO_SCRIPTURES.filter(s => s.topic === topic);
+      const chosen = pool[Math.floor(Math.random() * pool.length)];
+      globalState.currentScripture = chosen;
+
+      document.getElementById('scriptureDisplayCard').innerHTML = `
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[#1e293b] pb-2">
+          <span class="font-serif-tc text-base sm:text-lg font-bold text-[#fbbf24]">${chosen.sutra}</span>
+          <span class="text-xs text-[#38bdf8] bg-[#0d1323] px-2.5 py-1 rounded border border-[#1e293b]">${chosen.taishoId}</span>
+        </div>
+        <blockquote class="font-serif-tc text-base sm:text-xl text-[#fde68a] leading-relaxed py-2 tracking-wide">
+          ${chosen.verse}
+        </blockquote>
+        <div class="text-xs text-[#94a3b8]">
+          南無本師釋迦牟尼佛 · 願以此法語照破無明、安住當下
+        </div>
+      `;
+
+      document.getElementById('buddhismProAnalysis').innerHTML = `
+        <p><strong class="text-[#f1f5f9]">1. 大正藏典籍出處：</strong>引自<span class="text-[#fbbf24]">${chosen.sutra}</span>（${chosen.taishoId}）。</p>
+        <p><strong class="text-[#f1f5f9]">2. 佛法義理宗趣：</strong>${chosen.proNote}</p>
+      `;
+
+      document.getElementById('buddhismPlainAnalysis').innerHTML = `
+        <p><strong class="text-[#f1f5f9]">● 給現代生活的轉念啟發：</strong>${chosen.plainNote}</p>
+        <p><strong class="text-[#f1f5f9]">● 三分鐘日常止觀練習：</strong>深吸一口氣，在心裡默念三次經文核心句，感受肩膀與眉心的放鬆，把注意力帶回到此時此刻的呼吸上。</p>
+      `;
+    }
+
+    /**
+     * ============================================================================
+     * 10. 分頁切換、一鍵複製完整參數、離線 HTML 下載
+     * ============================================================================
+     */
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        if (btn.dataset.tab === tabId) {
+          btn.className = 'tab-btn active-tab shrink-0 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium border border-[#38bdf8] bg-[#38bdf8]/15 text-[#38bdf8] transition cursor-pointer';
+        } else {
+          btn.className = 'tab-btn shrink-0 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium border border-[#1e293b] bg-[#0d1323] text-[#94a3b8] hover:text-[#f1f5f9] hover:border-slate-600 transition cursor-pointer';
+        }
+      });
+
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+      document.getElementById(`panel-${tabId}`).classList.remove('hidden');
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toastBox');
+      toast.textContent = msg;
+      toast.classList.remove('opacity-0');
+      setTimeout(() => toast.classList.add('opacity-0'), 2400);
+    }
+
+    function copyModulePrompt(moduleType) {
+      const { solarStr, hourName, genderStr, lunar, ziwei, bazi, liunianData, qimen, yuelao, fengshui, tarotDrawn, currentScripture } = globalState;
+      let text = '';
+
+      if (moduleType === 'ziwei') {
+        const palaceLines = PALACE_NAMES.map(pName => {
+          const p = ziwei.palaces.find(item => item.palaceName === pName);
+          const majors = p.majorStars.map(s => {
+            const sh = ziwei.sihuaMap[s.name];
+            return `${s.name}[${s.brightness}]${sh ? `(化${sh.type})` : ''}`;
+          }).join('、') || '無主星(空宮)';
+          const minors = p.minorStars.map(s => {
+            const sh = ziwei.sihuaMap[s];
+            return sh ? `${s}(化${sh.type})` : s;
+          }).join('、') || '無';
+          return `- ${p.palaceName}${p.isShen ? '[身宮]' : ''}（${p.stemName}${p.zhiName} · 大限${p.daxianRange}歲）：主星【${majors}】｜輔煞【${minors}】`;
+        }).join('\n');
+
+        text = `【紫微斗數確定性工程排盤資料 — 請為我深度解盤】
+基本資料：${genderStr}｜陽曆 ${solarStr} ${hourName}
+真實農曆：${lunar.fullStr}（${ziwei.leapAppliedNote}）
+命盤局數：${ziwei.yinYangGender} · ${ziwei.bureauName}（大限${ziwei.isForward ? '順行' : '逆行'}）｜命主：${ziwei.mingMaster}｜身主：${ziwei.shenMaster}
+生年四化飛星：${ziwei.sihuaLocations.map(s => `${s.star}${s.type}落${s.palaceName}(${s.stemZhi})`).join('、')}
+
+【十二宮位星曜與大限明細】
+${palaceLines}
+
+請結合以上三方四正、星曜廟旺平陷亮度、生年四化落宮與大限走勢，為我深度解析本命格局優勢、事業財運方向、感情互動模式與近期流年關鍵建議。`;
+
+      } else if (moduleType === 'qimen') {
+        const q = document.getElementById('qimenQuestionInput').value.trim() || '未填寫具體事件（請就盤面整體吉凶趨勢分析）';
+        const palaceLines = QIMEN_PALACES.map(p => {
+          const d = qimen.palaceData[p.num];
+          return `- ${p.name}(${p.dir})：八神【${d.deity}】｜九星【${d.star}】｜八門【${d.gate}】｜天盤【${d.tianStem}】在地盤【${d.diStem}】上${d.isZhiFu ? ' [值符]' : ''}${d.isZhiShi ? ' [值使]' : ''}`;
+        }).join('\n');
+
+        text = `【時家轉盤奇門遁甲起局資料（拆補法・中五寄坤二宮） — 請為我深度斷事】
+所問單一事項：${q}
+起局參數：${qimen.dunText}｜日柱：${qimen.dayGanZhi}｜時柱：${qimen.hourGanZhi}
+值符星：${qimen.zhiFuStar}｜值使門：${qimen.zhiShiGate}
+
+【洛書九宮盤面明細】
+${palaceLines}
+
+請嚴格針對我所問的單一事項，結合日干（求測者）與時干（所測之事）落宮生剋、三奇六儀格局與八門吉凶，分析成敗關鍵、貴人方位與最佳行動時機。`;
+
+      } else if (moduleType === 'bazi') {
+        const [yP, mP, dP, hP] = bazi.pillars;
+        const formatPillar = p => `${p.title}：${p.gan}${p.zhi}（天干十神：${p.tenGod}｜地支藏干：${p.hidden.map(h => `${h.gan}[${h.tenGod}]`).join('、')}）`;
+        const dayunLines = bazi.dayunList.map(dy => `${dy.ageFrom}歲(${dy.yearFrom}年)：${dy.ganZhi}［天干${dy.tenGod}／地支${dy.zhiTenGod}］`).join(' → ');
+
+        text = `【四柱八字排盤資料 — 請為我深度解盤】
+基本資料：${genderStr}｜陽曆 ${solarStr} ${hourName}（換日口徑：${bazi.ziDayModeNote}）
+真實農曆：${lunar.fullStr}｜節氣交接：${bazi.currentJieName}後
+日主元神：${bazi.dayMaster}（五行屬${bazi.dayMasterEl}）
+五行原局統計：木(${bazi.wuxingCount['木']}) 火(${bazi.wuxingCount['火']}) 土(${bazi.wuxingCount['土']}) 金(${bazi.wuxingCount['金']}) 水(${bazi.wuxingCount['水']})
+
+【四柱乾坤與藏干十神】
+${formatPillar(yP)}
+${formatPillar(mP)}
+${formatPillar(dP)}
+${formatPillar(hP)}
+
+【大運起運與八步十神大運序列】
+起運歲數：虛歲 ${bazi.startAge} 歲起運（${bazi.isForward ? '順行' : '逆行'}）
+大運序列：${dayunLines}
+
+請依據月令氣候與五行生剋制化，分析我的日主強弱、喜用神與忌神、事業財富格局，以及當前大運運勢重點。`;
+
+      } else if (moduleType === 'baziliu') {
+        const [yP, mP, dP, hP] = bazi.pillars;
+        text = `【八字流年與大運四維深度分析資料 — 請為我詳細解讀】
+基本資料：${genderStr}｜陽曆 ${solarStr} ${hourName}｜日主元神：${bazi.dayMaster}（屬${bazi.dayMasterEl}）
+本命四柱：${yP.gan}${yP.zhi}（年） · ${mP.gan}${mP.zhi}（月） · ${dP.gan}${dP.zhi}（日） · ${hP.gan}${hP.zhi}（時）
+推算流年：西元 ${liunianData.targetYear} 年（${liunianData.lnGanZhi}年 · 虛歲 ${liunianData.nominalAge} 歲）
+流年十神：天干【${liunianData.lnTenGod}】 / 地支本氣【${liunianData.lnZhiMainGod}】
+當前大運：【${liunianData.activeDayun.ganZhi}大運（${liunianData.activeDayun.ageFrom}歲起 · ${liunianData.activeDayun.tenGod}運）】
+
+【流年太歲神煞與刑沖合害】
+${liunianData.shenshaNotes.join('\n')}
+${liunianData.interactions.join('\n') || '無劇烈刑沖'}
+
+請結合我的本命喜用神、當前十年大運（${liunianData.activeDayun.ganZhi}）與 ${liunianData.targetYear}（${liunianData.lnGanZhi}）流年氣場，從「1.工作事業、2.財運投資、3.愛情姻緣、4.大運交會方向與流月關鍵節點」四個維度為我進行詳細剖析與具體行動建議。`;
+
+      } else if (moduleType === 'yuelao') {
+        const stickPart = yuelao.currentStick
+          ? `求得月老靈籤：${yuelao.currentStick.no}（${yuelao.currentStick.level}）\n籤詩：「${yuelao.currentStick.poem}」\n籤意：${yuelao.currentStick.desc}`
+          : '本次尚未抽籤（僅以本命星曜合參）';
+
+        text = `【月老姻緣合參資料 — 請為我深度解析感情運勢】
+基本資料：${genderStr}｜陽曆 ${solarStr} ${hourName}｜真實農曆：${lunar.fullStr}
+八字咸池桃花位：${yuelao.xianChiZhi}｜本命紅鸞：${yuelao.hongLuanZhi}｜本命天喜：${yuelao.tianXiZhi}
+紫微夫妻宮（${yuelao.spousePalaceStemZhi}）：${yuelao.spouseStars}
+
+【月老靈籤感應】
+${stickPart}
+
+請結合我的本命夫妻宮特質、紅鸞天喜桃花流年與月老籤詩寓意，為我剖析適合的伴侶類型、感情相處盲點與近期脫單/感情升溫建議。`;
+
+      } else if (moduleType === 'fengshui') {
+        const dirLines = Object.entries(fengshui.dirs).map(([d, s]) => `- ${d}方：${s}`).join('\n');
+        text = `【八宅明鏡陽宅風水命卦資料 — 請為我提供居家佈局建議】
+基本資料：${genderStr}｜陽曆 ${solarStr}｜真實農曆：${lunar.fullStr}
+本命卦象：${fengshui.name}（五行屬${fengshui.element}）· ${fengshui.group} ${fengshui.mappedNote}
+
+【八大方位遊年星吉凶對照】
+${dirLines}
+
+請依據我的「${fengshui.group}」特質，為我規劃大門朝向、主臥床頭方位、書桌辦公位與客廳財位的最佳調整與化解建議。`;
+
+      } else if (moduleType === 'tarot') {
+        const q = document.getElementById('tarotQuestionInput').value.trim() || '近期整體運勢與人生方向指引';
+        const cardsLines = tarotDrawn.map(c => `- 【${c.position}】：${c.name}（${c.orientation}）— 關鍵詞：${c.meaning}`).join('\n');
+        text = `【偉特塔羅占卜牌陣資料 — 請為我深度解牌】
+占卜問題：${q}
+
+【抽牌結果明細】
+${cardsLines}
+
+請結合各牌位之間的能量流動、正逆位象徵與元素互動，為我串聯出完整清晰的現況剖析與具體可行的行動建議。`;
+
+      } else if (moduleType === 'buddhism') {
+        const q = document.getElementById('buddhismQuestionInput').value.trim() || '如何在日常變動中安住其心、化解煩惱';
+        text = `【佛學問道 · 大正藏經典相應 — 請為我契理契機開示】
+心中所惑：${q}
+相應經典：${currentScripture.sutra}（${currentScripture.taishoId}）
+原典經文：${currentScripture.verse}
+
+請結合此段《大正藏》原典的般若智慧與生活實修方法，針對我的困惑給予溫暖、清晰且具啟發性的開示。`;
+      }
+
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        showToast('✅ 已複製完整分析資料，可直接貼給 AI 詢問！');
+      } catch (err) {
+        showToast('⚠️ 複製失敗，請手動選取複製');
+      }
+      document.body.removeChild(textarea);
+    }
+
+    function downloadOfflineHTML() {
+      const htmlContent = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+      const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'mystic_workbench.html';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('💾 已開始下載 mystic_workbench.html');
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initLiuNianYearSelector();
+      const now = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      document.getElementById('queryTime').value =
+        `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+      runAllCalculations();
+    });
+  </script>
+</body>
+</html>
